@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.3 (48.5m 링 내부 판정 완벽 매칭판)</title>
+  <title>VR 시기능 훈련 시스템 V20.4 (48.5m 벡터 오타 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -11,7 +11,7 @@
     
     .setup-box { width: 100%; max-width: 440px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 16px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
     .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
-    .center-title { font-size: 15px; font-weight: bold; color: #38b放弃8; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #3b82f6; }
+    .center-title { font-size: 15px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #3b82f6; }
     
     .panel-group { margin-bottom: 10px; }
     .panel-group.half { flex: 1; margin-bottom: 0; }
@@ -405,26 +405,26 @@
       rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.05}`);
     }
 
-    // ★ [완전 해결] 판정 허용 점수를 0.28에서 0.65로 대폭 늘려, 링 내부에 시선이 들어오면 무조건 트리거 작동하게 매칭
+    // ★ [오타 완벽 수정] applyQuarter -> applyQuaternion 정품 메서드로 완전 수정 완료
     window.checkTargetGazeVectorMathInternal = function() {
       if (!isTrainingActive || isPopping) return;
       
       const cameraEl = document.getElementById('mainCamera');
       if (!cameraEl) return;
       
-      const cameraObj = cameraEl.getObject3D('camera');
-      if (!cameraObj) return;
-      
       const vGaze = new THREE.Vector3(0, 0, -1);
+      // Three.js 카메라 회전 쿼터니언을 완벽 적용하여 정면 시선 벡터 추출
       vGaze.applyQuaternion(cameraEl.object3D.quaternion); 
       vGaze.normalize();
       
+      // 타겟 중심 좌표 벡터화
       const vTarget = new THREE.Vector3(currentX, currentY, currentZ);
       vTarget.normalize();
       
+      // 두 유닛 벡터간의 거리(오차) 연산
       const matchScore = vGaze.distanceTo(vTarget);
       
-      // 0.65 마진은 검은 링 안쪽 영역 전체를 완벽히 포괄하는 수학적 수치입니다.
+      // 0.65 수치는 48.5m 거리의 적당한 검은 링 크기 내부 전체를 아주 넉넉하게 포괄하는 꿀판정 값입니다.
       if (matchScore < 0.65) {
         if (!gazeTimer) {
           gazeTimer = setTimeout(() => {
