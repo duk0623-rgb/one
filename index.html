@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.6 (비율 정상화 및 링 커서 간섭 완벽 배제판)</title>
+  <title>VR 시기능 훈련 시스템 V20.7 (황금 비례 및 시선 커서 완전 동기화판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -49,7 +49,7 @@
       }
     });
 
-    // 오직 풍선 타깃에만 동작하는 마우스 진입 컴포넌트
+    // 시선 커서 진입 감지 정품 컴포넌트
     AFRAME.registerComponent('gaze-target-action', {
       init: function () {
         this.el.addEventListener('mouseenter', () => {
@@ -178,7 +178,8 @@
     
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-        <a-entity cursor="fuse: false;" raycaster="objects: .balloon-target; far: 60; interval: 50;"></a-entity>
+        
+        <a-entity cursor="fuse: false;" raycaster="objects: .balloon-target; far: 60; interval: 50;" position="0 0 -1"></a-entity>
         
         <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
           <a-text id="hud-text-left" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
@@ -192,14 +193,14 @@
     <a-entity id="magic-eye-board" visible="false">
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
         <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a">
-          <a-cone id="cone-left" color="#cc1111" position="0 -1.1 0" scale="0.3 0.3 0.3"></a-cone>
+          <a-cone id="cone-left" color="#cc1111" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
         </a-sphere>
         <a-ring id="gaze-ring-left" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
         <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981">
-          <a-cone id="cone-right" color="#047857" position="0 -1.1 0" scale="0.3 0.3 0.3"></a-cone>
+          <a-cone id="cone-right" color="#047857" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
         </a-sphere>
         <a-ring id="gaze-ring-right" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
@@ -414,13 +415,13 @@
         }
       }
 
-      // 예쁜 고정 비율 배치
+      // 황금 비율 반지름 1.6 정치
       bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bLeft.setAttribute('radius', '1.2'); 
+      bLeft.setAttribute('radius', '1.6'); 
       bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bRight.setAttribute('radius', '1.2');
+      bRight.setAttribute('radius', '1.6');
 
-      // 풍선 한가운데에 예쁘게 쏙 들어가는 미니 링 고정
+      // 미니 링 정중앙 배치 복구
       let ipdShift = 0.485; 
       rLeft.setAttribute('position', `${randX - ipdShift} ${randY} ${baseZ + 0.05}`);
       rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.05}`);
