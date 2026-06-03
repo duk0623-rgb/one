@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.4 (48.5m 벡터 오타 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V20.6 (비율 정상화 및 링 커서 간섭 완벽 배제판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -48,9 +48,22 @@
         }
       }
     });
+
+    // 오직 풍선 타깃에만 동작하는 마우스 진입 컴포넌트
+    AFRAME.registerComponent('gaze-target-action', {
+      init: function () {
+        this.el.addEventListener('mouseenter', () => {
+          if (!window.isTrainingActive || window.isPopping) return;
+          window.startGazeTimerInternal();
+        });
+        this.el.addEventListener('mouseleave', () => {
+          window.clearGazeTimerInternal();
+        });
+      }
+    });
+
     AFRAME.registerComponent('vr-loop-manager', {
       tick: function (time, timeDelta) {
-        if (typeof window.checkTargetGazeVectorMathInternal === 'function') window.checkTargetGazeVectorMathInternal();
         if (typeof window.animateBackgroundScrollInternal === 'function') window.animateBackgroundScrollInternal();
       }
     });
@@ -165,6 +178,8 @@
     
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
+        <a-entity cursor="fuse: false;" raycaster="objects: .balloon-target; far: 60; interval: 50;"></a-entity>
+        
         <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
           <a-text id="hud-text-left" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
         </a-entity>
@@ -176,23 +191,27 @@
 
     <a-entity id="magic-eye-board" visible="false">
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
-        <a-sphere id="balloon-left" color="#ff2a2a"><a-cone id="cone-left" color="#cc1111"></a-cone></a-sphere>
-        <a-ring id="gaze-ring-left" radius-inner="1.5" radius-outer="2.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a">
+          <a-cone id="cone-left" color="#cc1111" position="0 -1.1 0" scale="0.3 0.3 0.3"></a-cone>
+        </a-sphere>
+        <a-ring id="gaze-ring-left" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
-        <a-sphere id="balloon-right" color="#10b981"><a-cone id="cone-right" color="#047857"></a-cone></a-sphere>
-        <a-ring id="gaze-ring-right" radius-inner="1.5" radius-outer="2.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981">
+          <a-cone id="cone-right" color="#047857" position="0 -1.1 0" scale="0.3 0.3 0.3"></a-cone>
+        </a-sphere>
+        <a-ring id="gaze-ring-right" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
     </a-entity>
     <a-entity id="particle-group"></a-entity>
   </a-scene>
 
   <script>
-    let audioCtx = null;
-    let balloonPopCount = 0; 
-    let isTrainingActive = false;
-    let isPopping = false;
+    window.audioCtx = null;
+    window.balloonPopCount = 0; 
+    window.isTrainingActive = false;
+    window.isPopping = false;
     let elapsedInterval = null;
     
     let remainingSeconds = 180; 
@@ -222,7 +241,7 @@
       if(rowsCols < 1) rowsCols = 1;
       if(rowsCols > 12) rowsCols = 12;
       document.getElementById('grid-val-txt').innerText = rowsCols;
-      if(isTrainingActive) redrawBackgroundGrid();
+      if(window.isTrainingActive) redrawBackgroundGrid();
     }
 
     function changeRangeVal(amt) {
@@ -254,7 +273,7 @@
         document.getElementById('panel-time-txt').innerText = "훈련 완료!";
         document.getElementById('panel-time-txt').style.color = "#22c55e";
         
-        let completionStr = `🎉 DONE!\n🎈 POP: ${balloonPopCount}`;
+        let completionStr = `🎉 DONE!\n🎈 POP: ${window.balloonPopCount}`;
         document.getElementById('hud-text-left').setAttribute('value', completionStr);
         document.getElementById('hud-text-right').setAttribute('value', completionStr);
         return;
@@ -267,15 +286,15 @@
       let pSec = String(sec).padStart(2, '0');
       
       document.getElementById('panel-time-txt').innerText = `${pMin}분 ${pSec}초`;
-      document.getElementById('panel-pop-txt').innerText = `${balloonPopCount} 개`;
+      document.getElementById('panel-pop-txt').innerText = `${window.balloonPopCount} 개`;
       
-      let hudStr = `⏳ ${min}m ${sec}s\n🎈 POP: ${balloonPopCount}`;
+      let hudStr = `⏳ ${min}m ${sec}s\n🎈 POP: ${window.balloonPopCount}`;
       document.getElementById('hud-text-left').setAttribute('value', hudStr);
       document.getElementById('hud-text-right').setAttribute('value', hudStr);
     }
 
     function startSingleVRTraining() {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       
       eyeModeSetting = document.getElementById('eye-select').value;
       runModeSetting = document.getElementById('run-mode-select').value;
@@ -298,18 +317,18 @@
       
       redrawBackgroundGrid();
       
-      isTrainingActive = true;
+      window.isTrainingActive = true;
       document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       renderRandomTargetsOnly();
       
       autoTimerCounter = 0;
       autoDirectionStep = 0;
-      balloonPopCount = 0;
+      window.balloonPopCount = 0;
       updateDataCounters();
 
       if (elapsedInterval) clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
-        if (!isTrainingActive) return;
+        if (!window.isTrainingActive) return;
         
         if (remainingSeconds > 0) {
           remainingSeconds--;
@@ -352,7 +371,7 @@
     }
 
     function renderRandomTargetsOnly() {
-      if (!isTrainingActive) return;
+      if (!window.isTrainingActive) return;
       
       let camPos = {x: 0, y: 1.6, z: 0};
       let zOffset = 48.5; 
@@ -395,45 +414,31 @@
         }
       }
 
+      // 예쁜 고정 비율 배치
       bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bLeft.setAttribute('radius', '1.6'); 
+      bLeft.setAttribute('radius', '1.2'); 
       bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bRight.setAttribute('radius', '1.6');
+      bRight.setAttribute('radius', '1.2');
 
+      // 풍선 한가운데에 예쁘게 쏙 들어가는 미니 링 고정
       let ipdShift = 0.485; 
       rLeft.setAttribute('position', `${randX - ipdShift} ${randY} ${baseZ + 0.05}`);
       rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.05}`);
     }
 
-    // ★ [오타 완벽 수정] applyQuarter -> applyQuaternion 정품 메서드로 완전 수정 완료
-    window.checkTargetGazeVectorMathInternal = function() {
-      if (!isTrainingActive || isPopping) return;
-      
-      const cameraEl = document.getElementById('mainCamera');
-      if (!cameraEl) return;
-      
-      const vGaze = new THREE.Vector3(0, 0, -1);
-      // Three.js 카메라 회전 쿼터니언을 완벽 적용하여 정면 시선 벡터 추출
-      vGaze.applyQuaternion(cameraEl.object3D.quaternion); 
-      vGaze.normalize();
-      
-      // 타겟 중심 좌표 벡터화
-      const vTarget = new THREE.Vector3(currentX, currentY, currentZ);
-      vTarget.normalize();
-      
-      // 두 유닛 벡터간의 거리(오차) 연산
-      const matchScore = vGaze.distanceTo(vTarget);
-      
-      // 0.65 수치는 48.5m 거리의 적당한 검은 링 크기 내부 전체를 아주 넉넉하게 포괄하는 꿀판정 값입니다.
-      if (matchScore < 0.65) {
-        if (!gazeTimer) {
-          gazeTimer = setTimeout(() => {
-            isPopping = true;
-            gazeTimer = null;
-            popTargetSuccess();
-          }, 1000); 
-        }
-      } else if (gazeTimer) {
+    window.startGazeTimerInternal = function() {
+      if (window.isPopping || !window.isTrainingActive) return;
+      if (!gazeTimer) {
+        gazeTimer = setTimeout(() => {
+          window.isPopping = true;
+          gazeTimer = null;
+          popTargetSuccess();
+        }, 1000); 
+      }
+    };
+
+    window.clearGazeTimerInternal = function() {
+      if (gazeTimer) {
         clearTimeout(gazeTimer);
         gazeTimer = null;
       }
@@ -441,7 +446,7 @@
 
     function popTargetSuccess() {
       playPopSound();
-      balloonPopCount++; 
+      window.balloonPopCount++; 
       updateDataCounters(); 
       triggerParticlesEmission(currentX, currentY, currentZ, 25);
       
@@ -451,15 +456,15 @@
       
       document.getElementById('magic-eye-board').setAttribute('visible', 'false');
       setTimeout(() => {
-        if (!isTrainingActive) return;
-        isPopping = false;
+        if (!window.isTrainingActive) return;
+        window.isPopping = false;
         renderRandomTargetsOnly();
         document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       }, 400);
     }
 
     window.animateBackgroundScrollInternal = function() {
-      if (!isTrainingActive) return;
+      if (!window.isTrainingActive) return;
       
       let currentDir = "right";
       if (runModeSetting === "auto") {
@@ -483,16 +488,16 @@
     };
 
     function playPopSound() {
-      if (!audioCtx) return;
+      if (!window.audioCtx) return;
       try {
-        const osc1 = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, audioCtx.currentTime);
-        osc1.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
-        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
-        osc1.connect(gainNode); gainNode.connect(audioCtx.destination);
-        osc1.start(); osc1.stop(audioCtx.currentTime + 0.12);
+        const osc1 = window.audioCtx.createOscillator();
+        const gainNode = window.audioCtx.createGain();
+        osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, window.audioCtx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(880, window.audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.15, window.audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, window.audioCtx.currentTime + 0.12);
+        osc1.connect(gainNode); gainNode.connect(window.audioCtx.destination);
+        osc1.start(); osc1.stop(window.audioCtx.currentTime + 0.12);
       } catch(e) {}
     }
 
