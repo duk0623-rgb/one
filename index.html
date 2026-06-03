@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.0 (저시력자용 링 보강 및 타겟 터짐 보장판)</title>
+  <title>VR 시기능 훈련 시스템 V20.1 (배경 근접 원근감 복구 및 초거대 트리거 적용판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -165,7 +165,7 @@
     
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 10; interval: 5;"></a-entity>
+        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
         
         <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
           <a-text id="hud-text-left" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
@@ -179,12 +179,12 @@
     <a-entity id="magic-eye-board" visible="false">
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
         <a-sphere id="balloon-left" color="#ff2a2a"><a-cone id="cone-left" color="#cc1111"></a-cone></a-sphere>
-        <a-ring id="gaze-ring-left" radius-inner="0.15" radius-outer="0.23" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <a-ring id="gaze-ring-left" radius-inner="3.5" radius-outer="5.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
         <a-sphere id="balloon-right" color="#10b981"><a-cone id="cone-right" color="#047857"></a-cone></a-sphere>
-        <a-ring id="gaze-ring-right" radius-inner="0.15" radius-outer="0.23" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <a-ring id="gaze-ring-right" radius-inner="3.5" radius-outer="5.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="gaze-collision-trigger" class="gaze-secure-trigger" material="visible: false;" stereo-eye-lock="eye: both"></a-entity>
@@ -203,7 +203,7 @@
     let totalDurationSet = 180;
 
     let activeTurn = "left"; 
-    let currentX = 0, currentY = 1.6, currentZ = -1.2; // 확실히 터지는 안성맞춤 물리 거리 고정
+    let currentX = 0, currentY = 1.6, currentZ = -45.0; // 진짜 원거리 깊이 복구
     let gazeTimer = null;
     let rotX = 0, rotY = 0, rotZ = 0;
     
@@ -355,20 +355,19 @@
       }
     }
 
-    // ★ 광학 매칭: 물리 1.2m에서 터짐을 100% 보장하고 크기/반경 공식을 최적화
     function renderRandomTargetsOnly() {
       if (!isTrainingActive) return;
       
       let camPos = {x: 0, y: 1.6, z: 0};
-      let zOffset = 1.2; // 1.2m 초근접 물리 깊이 고정
+      let zOffset = 45.0; // 배경 구체 바로 앞의 진원거리 배치
       let baseZ = camPos.z - zOffset;
       
-      let spreadFactor = zOffset / 1.0; 
+      let spreadFactor = zOffset / 4.2; 
       
-      let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 0.45 * spreadFactor);
-      let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 0.35 * spreadFactor);
-      if (randY < camPos.y - (0.15 * spreadFactor)) randY = camPos.y - (0.15 * spreadFactor);
-      if (randY > camPos.y + (0.25 * spreadFactor)) randY = camPos.y + (0.25 * spreadFactor);
+      let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.3 * spreadFactor);
+      let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 1.0 * spreadFactor);
+      if (randY < camPos.y - (0.5 * spreadFactor)) randY = camPos.y - (0.5 * spreadFactor);
+      if (randY > camPos.y + (0.7 * spreadFactor)) randY = camPos.y + (0.7 * spreadFactor);
       
       currentX = randX; currentY = randY; currentZ = baseZ;
 
@@ -401,22 +400,21 @@
         }
       }
 
-      // 1. 풍선 스케일 결정 (근접 거리에 맞춰 눈 피로도 최소화 비율 스케일링)
+      // 1. 왜곡 없는 완벽한 풍선 형태 복구 (원거리에 어울리는 황금 비율 크기)
       bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bLeft.setAttribute('radius', '0.12'); 
+      bLeft.setAttribute('radius', '3.2'); 
       bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bRight.setAttribute('radius', '0.12');
+      bRight.setAttribute('radius', '3.2');
 
-      // 2. 두꺼워진 검은 링을 풍선과 완벽 동기화 (가려짐 원천 방지)
-      // 양안 시차 미세 튜닝
-      let ipdShift = 0.022; 
-      rLeft.setAttribute('position', `${randX - ipdShift} ${randY} ${baseZ + 0.005}`);
-      rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.005}`);
+      // 2. 검은 원(링) 원거리 가이드 동기화 매칭
+      let ipdShift = 0.45; 
+      rLeft.setAttribute('position', `${randX - ipdShift} ${randY} ${baseZ + 0.1}`);
+      rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.1}`);
 
-      // 3. 레이캐스터 히트 판정 트리거 구체를 풍선 크기보다 넉넉하게 대폭 확장 (스쳐도 펑!)
+      // 3. ★ 핵심: 45m 밖에서도 100% 터지도록 시선 충돌 구체 영역을 초거대화(radius: 15) 처리
       if (secureTrigger) {
         secureTrigger.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-        secureTrigger.setAttribute('geometry', `primitive: sphere; radius: 0.28`);
+        secureTrigger.setAttribute('geometry', `primitive: sphere; radius: 15.0`);
         if (!isPopping && !secureTrigger.classList.contains('gaze-secure-trigger')) secureTrigger.classList.add('gaze-secure-trigger');
       }
     }
@@ -503,10 +501,10 @@
       const pGroup = document.getElementById('particle-group');
       for (let i = 0; i < count; i++) {
         const p = document.createElement('a-box');
-        p.setAttribute('width', '0.02'); p.setAttribute('height', '0.02'); p.setAttribute('depth', '0.02');
+        p.setAttribute('width', '0.4').setAttribute('height', '0.4').setAttribute('depth', '0.4');
         p.setAttribute('color', ['#ff0055', '#ffff00', '#00ffcc', '#38bdf8'][Math.floor(Math.random() * 4)]);
         p.setAttribute('position', `${x} ${y} ${z}`);
-        const vx = (Math.random() - 0.5) * 1.5, vy = (Math.random() - 0.5) * 1.5 + 0.8, vz = (Math.random() - 0.5) * 1.5;
+        const vx = (Math.random() - 0.5) * 12, vy = (Math.random() - 0.5) * 12 + 5, vz = (Math.random() - 0.5) * 12;
         pGroup.appendChild(p);
         let age = 0;
         const t = setInterval(() => {
