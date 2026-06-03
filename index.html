@@ -2,34 +2,19 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V19.5 (모니터 실시간 전광판 통합판)</title>
+  <title>VR 시기능 훈련 시스템 V19.3 (실시간 카운터 통합판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
-    
-    /* 제어 패널 메인 컨테이너 */
     #setup-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #070a12; color: #38bdf8; z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-    .setup-box { width: 100%; max-width: 420px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 25px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); overflow-y: auto; max-height: 95vh; }
+    .setup-box { width: 100%; max-width: 400px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 25px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); overflow-y: auto; max-height: 90vh; }
     .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
     .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6; }
-    
-    .panel-group { margin-bottom: 16px; }
+    .panel-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 6px; font-size: 13px; color: #cbd5e1; font-weight: bold; }
-    select { width: 100%; padding: 8px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
-    
-    /* 버튼형 조종기 스타일 */
-    .btn-controller { display: flex; align-items: center; justify-content: space-between; background: #1e293b; border: 1px solid #475569; border-radius: 6px; padding: 4px; }
-    .ctrl-btn { width: 45px; height: 36px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.1s; }
-    .ctrl-btn:active { background: #1d4ed8; }
-    .ctrl-value { font-size: 15px; color: #38bdf8; font-weight: bold; text-align: center; flex: 1; }
-    
-    /* [핵심 변경] 모니터 전용 실시간 대형 전광판 대시보드 디자인 */
-    .dashboard-panel { margin-top: 10px; padding: 20px; background: #0f172a; border: 3px dashed #22c55e; border-radius: 10px; text-align: center; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); }
-    .dash-row { display: flex; flex-direction: column; gap: 15px; }
-    .dash-item { font-size: 15px; color: #cbd5e1; font-weight: bold; letter-spacing: 0.5px; }
-    .dash-num { font-size: 32px; color: #eab308; font-weight: bold; display: block; margin-top: 6px; font-family: 'Courier New', monospace; text-shadow: 0 0 10px rgba(234, 179, 8, 0.3); }
-
-    .start-btn { width: 100%; padding: 15px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 16px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
+    select, input[type="range"] { width: 100%; padding: 8px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
+    .display-value { float: right; color: #38bdf8; font-weight: bold; }
+    .start-btn { width: 100%; padding: 15px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 16px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
   </style>
   <script>
     AFRAME.registerComponent('stereo-eye-lock', {
@@ -62,84 +47,59 @@
       <div class="center-info">시기능 시지각 전문 훈련 기관</div>
       <div class="center-title">한국시기능훈련센터 성서계명대점</div>
       
-      <div id="settings-input-area">
-        <div class="panel-group">
-          <label>🎮 구동 모드 선택</label>
-          <select id="run-mode-select" onchange="toggleRunModeUI(this.value)">
-            <option value="manual" selected>수동 모드 (방향 직접 지정)</option>
-            <option value="auto">자동 모드 (순환 방향 전환)</option>
-          </select>
-        </div>
-
-        <div class="panel-group" id="manual-dir-group">
-          <label>🗺️ 배경 이동 방향 지정 (수동)</label>
-          <select id="manual-dir-select">
-            <option value="right" selected>우측 이동</option>
-            <option value="left">좌측 이동</option>
-            <option value="up">상측 이동</option>
-            <option value="down">하측 이동</option>
-            <option value="clockwise">시계방향 회전</option>
-            <option value="counterclockwise">반시계방향 회전</option>
-          </select>
-        </div>
-
-        <div class="panel-group" id="auto-interval-group" style="display: none;">
-          <label>🔄 자동 전환 주기 설정</label>
-          <select id="auto-interval-select">
-            <option value="120" selected>2분 단위 전환</option>
-            <option value="180">3분 단위 전환</option>
-          </select>
-        </div>
-
-        <div class="panel-group">
-          <label>👁️ 안구 선택 모드</label>
-          <select id="eye-select">
-            <option value="alternating" selected>교대 출현 (OU)</option>
-            <option value="leftOnly">왼쪽 눈 전용 (L-양안격리)</option>
-            <option value="rightOnly">오른쪽 눈 전용 (R-양안격리)</option>
-          </select>
-        </div>
-
-        <div class="panel-group">
-          <label>🏁 배경 격자 크기 (도막)</label>
-          <div class="btn-controller">
-            <button class="ctrl-btn" onclick="changeGridVal(-1)">-</button>
-            <span class="ctrl-value" id="grid-val-txt">4</span>
-            <button class="ctrl-btn" onclick="changeGridVal(1)">+</button>
-          </div>
-        </div>
-
-        <div class="panel-group">
-          <label>↔️ 풍선 출현 반경</label>
-          <div class="btn-controller">
-            <button class="ctrl-btn" onclick="changeRangeVal(-0.1)">-</button>
-            <span class="ctrl-value" id="range-val-txt">1.40</span>
-            <button class="ctrl-btn" onclick="changeRangeVal(0.1)">+</button>
-          </div>
-        </div>
-
-        <div class="panel-group">
-          <label>🔄 배경 회전 속도</label>
-          <div class="btn-controller">
-            <button class="ctrl-btn" onclick="changeSpeedVal(-1)">-</button>
-            <span class="ctrl-value" id="speed-val-txt">4</span>
-            <button class="ctrl-btn" onclick="changeSpeedVal(1)">+</button>
-          </div>
-        </div>
-        
-        <button class="start-btn" onclick="startSingleVRTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
+      <div class="panel-group">
+        <label>🎮 구동 모드 선택</label>
+        <select id="run-mode-select" onchange="toggleRunModeUI(this.value)">
+          <option value="manual" selected>수동 모드 (방향 직접 지정)</option>
+          <option value="auto">자동 모드 (순환 방향 전환)</option>
+        </select>
       </div>
 
-      <div id="active-dashboard-area" style="display: none;">
-        <div class="dashboard-panel">
-          <div class="dash-row">
-            <div class="dash-item">⏱️ 현재 시간 경과<span class="dash-num" id="panel-time-txt">00분 00초</span></div>
-            <div class="dash-item">🎈 터진 풍선 카운트<span class="dash-num" id="panel-pop-txt">0 개</span></div>
-          </div>
-        </div>
-        <button class="start-btn" style="background:#ef4444; box-shadow:0 4px 12px rgba(239,68,68,0.4);" onclick="location.reload();">훈련 종료 및 설정창 재생성</button>
+      <div class="panel-group" id="manual-dir-group">
+        <label>🗺️ 배경 이동 방향 지정 (수동)</label>
+        <select id="manual-dir-select">
+          <option value="right" selected>우측 이동</option>
+          <option value="left">좌측 이동</option>
+          <option value="up">상측 이동</option>
+          <option value="down">하측 이동</option>
+          <option value="clockwise">시계방향 회전</option>
+          <option value="counterclockwise">반시계방향 회전</option>
+        </select>
       </div>
 
+      <div class="panel-group" id="auto-interval-group" style="display: none;">
+        <label>🔄 자동 전환 주기 설정</label>
+        <select id="auto-interval-select">
+          <option value="120" selected>2분 단위 전환</option>
+          <option value="180">3분 단위 전환</option>
+        </select>
+      </div>
+
+      <div class="panel-group">
+        <label>👁️ 안구 선택 모드</label>
+        <select id="eye-select">
+          <option value="alternating" selected>교대 출현 (OU)</option>
+          <option value="leftOnly">왼쪽 눈 전용 (L-양안격리)</option>
+          <option value="rightOnly">오른쪽 눈 전용 (R-양안격리)</option>
+        </select>
+      </div>
+
+      <div class="panel-group">
+        <label>🏁 배경 격자 크기 <span class="display-value" id="grid-txt">4</span></label>
+        <input type="range" id="grid-slider" min="1" max="12" value="4" step="1" oninput="document.getElementById('grid-txt').innerText=this.value;">
+      </div>
+
+      <div class="panel-group">
+        <label>↔️ 풍선 출현 반경 <span class="display-value" id="range-txt">1.40</span></label>
+        <input type="range" id="range-slider" min="0.50" max="2.40" value="1.40" step="0.10" oninput="document.getElementById('range-txt').innerText=parseFloat(this.value).toFixed(2);">
+      </div>
+
+      <div class="panel-group" id="speed-control-group">
+        <label>🔄 배경 회전 속도 <span class="display-value" id="speed-txt">4</span></label>
+        <input type="range" id="speed-slider" min="0" max="60" value="4" step="1" oninput="document.getElementById('speed-txt').innerText=this.value; rotationSpeed=parseInt(this.value);">
+      </div>
+
+      <button class="start-btn" onclick="startSingleVRTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
     </div>
   </div>
 
@@ -179,6 +139,8 @@
   <script>
     let audioCtx = null;
     let balloonPopCount = 0; 
+    let randomRange = 1.40;
+    let rotationSpeed = 4;
     let isTrainingActive = false;
     let isPopping = false;
     let elapsedInterval = null;
@@ -187,11 +149,8 @@
     let currentX = 0, currentY = 1.6, currentZ = -16.0;
     let gazeTimer = null;
     let rotX = 0, rotY = 0, rotZ = 0;
-    
     let rowsCols = 4;
-    let randomRange = 1.40;
-    let rotationSpeed = 4;
-
+    
     let eyeModeSetting = "alternating";
     let runModeSetting = "manual";
     let manualDirectionSetting = "right";
@@ -200,28 +159,6 @@
     let autoTimerCounter = 0;
 
     const sceneEl = document.getElementById('vr-scene');
-
-    function changeGridVal(amt) {
-      rowsCols += amt;
-      if(rowsCols < 1) rowsCols = 1;
-      if(rowsCols > 12) rowsCols = 12;
-      document.getElementById('grid-val-txt').innerText = rowsCols;
-      if(isTrainingActive) redrawBackgroundGrid();
-    }
-
-    function changeRangeVal(amt) {
-      randomRange = parseFloat((randomRange + amt).toFixed(2));
-      if(randomRange < 0.50) randomRange = 0.50;
-      if(randomRange > 2.40) randomRange = 2.40;
-      document.getElementById('range-val-txt').innerText = randomRange.toFixed(2);
-    }
-
-    function changeSpeedVal(amt) {
-      rotationSpeed += amt;
-      if(rotationSpeed < 0) rotationSpeed = 0;
-      if(rotationSpeed > 60) rotationSpeed = 60;
-      document.getElementById('speed-val-txt').innerText = rotationSpeed;
-    }
 
     function toggleRunModeUI(mode) {
       if(mode === 'auto') {
@@ -233,22 +170,15 @@
       }
     }
 
-    // [실시간 핵심 스크립트] 치료사 조종창 모니터 전광판 및 VR 내부 HUD 동시 동기화 장치
-    function updateDataCounters() {
+    function updateHudDisplay() {
+      // 분:초 포맷 연산
       let min = Math.floor(totalSecondsElapsed / 60);
       let sec = totalSecondsElapsed % 60;
+      let timeStr = `${min}m ${sec}s`;
+      let textValue = `⏱️ ${timeStr}\n🎈 POP: ${balloonPopCount}`;
       
-      let pMin = String(min).padStart(2, '0');
-      let pSec = String(sec).padStart(2, '0');
-      
-      // 1. 외부 모니터 전광판 텍스트 동기화 (큼직하게 갱신)
-      document.getElementById('panel-time-txt').innerText = `${pMin}분 ${pSec}초`;
-      document.getElementById('panel-pop-txt').innerText = `${balloonPopCount} 개`;
-      
-      // 2. VR 헤드셋 내부 HUD 텍스트 동기화
-      let hudStr = `⏱️ ${min}m ${sec}s\n🎈 POP: ${balloonPopCount}`;
-      document.getElementById('hud-text-left').setAttribute('value', hudStr);
-      document.getElementById('hud-text-right').setAttribute('value', hudStr);
+      document.getElementById('hud-text-left').setAttribute('value', textValue);
+      document.getElementById('hud-text-right').setAttribute('value', textValue);
     }
 
     function startSingleVRTraining() {
@@ -256,6 +186,9 @@
       
       eyeModeSetting = document.getElementById('eye-select').value;
       runModeSetting = document.getElementById('run-mode-select').value;
+      rowsCols = parseInt(document.getElementById('grid-slider').value);
+      randomRange = parseFloat(document.getElementById('range-slider').value);
+      rotationSpeed = parseInt(document.getElementById('speed-slider').value);
       
       if (runModeSetting === "auto") {
         autoChangeInterval = parseInt(document.getElementById('auto-interval-select').value);
@@ -266,27 +199,26 @@
       if (eyeModeSetting === "rightOnly") activeTurn = "right";
       else activeTurn = "left";
 
-      // 설정창을 가리고, 실시간 대형 모니터 전광판을 표출합니다.
-      document.getElementById('settings-input-area').style.display = 'none';
-      document.getElementById('active-dashboard-area').style.display = 'block';
-      
+      document.getElementById('setup-container').style.display = 'none';
       redrawBackgroundGrid();
       
       isTrainingActive = true;
       document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       renderRandomTargetsOnly();
       
+      // 변수 및 HUD 초기화
       totalSecondsElapsed = 0;
       autoTimerCounter = 0;
       autoDirectionStep = 0;
       balloonPopCount = 0;
-      updateDataCounters();
+      updateHudDisplay();
 
       if (elapsedInterval) clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
         if (!isTrainingActive) return;
         totalSecondsElapsed++;
         
+        // 자동 전환 모드 시 주기별 6단계 기하학 순환 연산
         if (runModeSetting === "auto") {
           autoTimerCounter++;
           if (autoTimerCounter >= autoChangeInterval) {
@@ -295,7 +227,8 @@
           }
         }
 
-        updateDataCounters();
+        // 매초 실시간 HUD 동기화 반영
+        updateHudDisplay();
       }, 1000);
 
       if (sceneEl.hasLoaded) sceneEl.enterVR();
@@ -321,7 +254,7 @@
       }
     }
 
-    // ★ [절대 가이드 규칙 사수] 현재 검은 원 위치와 풍선 좌표 1:1 완벽 추적 융합 배치
+    // ★ [절대 가이드 수립] 현재 검은 원 위치와 풍선 좌표 1:1 완벽 추적 융합 배치
     function renderRandomTargetsOnly() {
       if (!isTrainingActive) return;
       
@@ -347,6 +280,7 @@
       const bRight = document.getElementById('balloon-right');
       const secureTrigger = document.getElementById('gaze-collision-trigger');
 
+      // 단안 격리 모드에 의한 HUD 및 검은 원 제어
       if (eyeModeSetting === "leftOnly") {
         activeTurn = "left";
         ringLeft.setAttribute('visible', 'true'); ringRight.setAttribute('visible', 'false');
@@ -358,6 +292,7 @@
         hudL.setAttribute('visible', 'false'); hudR.setAttribute('visible', 'true');
         cLeft.setAttribute('visible', 'false'); cRight.setAttribute('visible', 'true');
       } else {
+        // 교대 모드 시 활성화된 안구에만 정보 로드
         if (activeTurn === "left") {
           ringLeft.setAttribute('visible', 'true'); ringRight.setAttribute('visible', 'false');
           hudL.setAttribute('visible', 'true'); hudR.setAttribute('visible', 'false');
@@ -412,7 +347,7 @@
     function popTargetSuccess() {
       playPopSound();
       balloonPopCount++; 
-      updateDataCounters(); 
+      updateHudDisplay(); // 터지는 즉시 상단 카운터 반영
       triggerParticlesEmission(currentX, currentY, currentZ, 30);
       
       if (eyeModeSetting === "alternating") {
@@ -459,7 +394,7 @@
         const gainNode = audioCtx.createGain();
         osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, audioCtx.currentTime);
         osc1.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
-        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.15, applicationCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
         osc1.connect(gainNode); gainNode.connect(audioCtx.destination);
         osc1.start(); osc1.stop(audioCtx.currentTime + 0.12);
