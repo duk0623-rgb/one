@@ -2,35 +2,34 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.3 (48.5m 링 내부 판정 완벽 매칭판)</title>
+  <title>VR 시기능 훈련 시스템 V19.5 (모니터 실시간 전광판 통합판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
     
-    #setup-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #070a12; color: #38bdf8; z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; box-sizing: border-box; }
-    
-    .setup-box { width: 100%; max-width: 440px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 16px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
+    /* 제어 패널 메인 컨테이너 */
+    #setup-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #070a12; color: #38bdf8; z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+    .setup-box { width: 100%; max-width: 420px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 25px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); overflow-y: auto; max-height: 95vh; }
     .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
-    .center-title { font-size: 15px; font-weight: bold; color: #38b放弃8; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #3b82f6; }
+    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6; }
     
-    .panel-group { margin-bottom: 10px; }
-    .panel-group.half { flex: 1; margin-bottom: 0; }
-    .flex-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .panel-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-size: 13px; color: #cbd5e1; font-weight: bold; }
+    select { width: 100%; padding: 8px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
     
-    label { display: block; margin-bottom: 4px; font-size: 12px; color: #cbd5e1; font-weight: bold; }
-    select { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 12px; height: 32px; }
-    
-    .btn-controller { display: flex; align-items: center; justify-content: space-between; background: #1e293b; border: 1px solid #475569; border-radius: 6px; padding: 2px; height: 32px; box-sizing: border-box; }
-    .ctrl-btn { width: 35px; height: 26px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    /* 버튼형 조종기 스타일 */
+    .btn-controller { display: flex; align-items: center; justify-content: space-between; background: #1e293b; border: 1px solid #475569; border-radius: 6px; padding: 4px; }
+    .ctrl-btn { width: 45px; height: 36px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.1s; }
     .ctrl-btn:active { background: #1d4ed8; }
-    .ctrl-value { font-size: 13px; color: #38bdf8; font-weight: bold; text-align: center; flex: 1; }
+    .ctrl-value { font-size: 15px; color: #38bdf8; font-weight: bold; text-align: center; flex: 1; }
     
-    .dashboard-panel { margin-top: 5px; padding: 15px; background: #0f172a; border: 3px dashed #22c55e; border-radius: 10px; text-align: center; }
-    .dash-row { display: flex; flex-direction: column; gap: 10px; }
-    .dash-item { font-size: 14px; color: #cbd5e1; font-weight: bold; }
-    .dash-num { font-size: 28px; color: #eab308; font-weight: bold; display: block; margin-top: 4px; font-family: 'Courier New', monospace; }
+    /* [핵심 변경] 모니터 전용 실시간 대형 전광판 대시보드 디자인 */
+    .dashboard-panel { margin-top: 10px; padding: 20px; background: #0f172a; border: 3px dashed #22c55e; border-radius: 10px; text-align: center; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); }
+    .dash-row { display: flex; flex-direction: column; gap: 15px; }
+    .dash-item { font-size: 15px; color: #cbd5e1; font-weight: bold; letter-spacing: 0.5px; }
+    .dash-num { font-size: 32px; color: #eab308; font-weight: bold; display: block; margin-top: 6px; font-family: 'Courier New', monospace; text-shadow: 0 0 10px rgba(234, 179, 8, 0.3); }
 
-    .start-btn { width: 100%; padding: 12px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 12px; font-size: 15px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
+    .start-btn { width: 100%; padding: 15px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 16px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
   </style>
   <script>
     AFRAME.registerComponent('stereo-eye-lock', {
@@ -50,7 +49,7 @@
     });
     AFRAME.registerComponent('vr-loop-manager', {
       tick: function (time, timeDelta) {
-        if (typeof window.checkTargetGazeVectorMathInternal === 'function') window.checkTargetGazeVectorMathInternal();
+        if (typeof window.checkTargetGazeIntersectionInternal === 'function') window.checkTargetGazeIntersectionInternal();
         if (typeof window.animateBackgroundScrollInternal === 'function') window.animateBackgroundScrollInternal();
       }
     });
@@ -72,38 +71,24 @@
           </select>
         </div>
 
-        <div id="manual-mode-options">
-          <div class="panel-group">
-            <label>🗺️ 배경 이동 방향 지정 (수동)</label>
-            <select id="manual-dir-select">
-              <option value="right" selected>우측 이동</option>
-              <option value="left">좌측 이동</option>
-              <option value="up">상측 이동</option>
-              <option value="down">하측 이동</option>
-              <option value="clockwise">시계방향 회전</option>
-              <option value="counterclockwise">반시계방향 회전</option>
-            </select>
-          </div>
-          <div class="panel-group">
-            <label>⏱️ 수동 모드 목표 훈련 시간</label>
-            <select id="manual-time-select">
-              <option value="60">1분 (01:00)</option>
-              <option value="180" selected>3분 (03:00)</option>
-              <option value="300">5분 (05:00)</option>
-              <option value="420">7분 (07:00)</option>
-              <option value="600">10분 (10:00)</option>
-            </select>
-          </div>
+        <div class="panel-group" id="manual-dir-group">
+          <label>🗺️ 배경 이동 방향 지정 (수동)</label>
+          <select id="manual-dir-select">
+            <option value="right" selected>우측 이동</option>
+            <option value="left">좌측 이동</option>
+            <option value="up">상측 이동</option>
+            <option value="down">하측 이동</option>
+            <option value="clockwise">시계방향 회전</option>
+            <option value="counterclockwise">반시계방향 회전</option>
+          </select>
         </div>
 
-        <div id="auto-mode-options" style="display: none;">
-          <div class="panel-group">
-            <label>⏱️ 자동 모드 전체 훈련 시간</label>
-            <select id="auto-time-select">
-              <option value="120" selected>2분 자동 훈련 (20초당 방향 전환)</option>
-              <option value="180">3분 자동 훈련 (30초당 방향 전환)</option>
-            </select>
-          </div>
+        <div class="panel-group" id="auto-interval-group" style="display: none;">
+          <label>🔄 자동 전환 주기 설정</label>
+          <select id="auto-interval-select">
+            <option value="120" selected>2분 단위 전환</option>
+            <option value="180">3분 단위 전환</option>
+          </select>
         </div>
 
         <div class="panel-group">
@@ -115,22 +100,12 @@
           </select>
         </div>
 
-        <div class="flex-row">
-          <div class="panel-group half">
-            <label>🏁 배경 격자 크기</label>
-            <div class="btn-controller">
-              <button class="ctrl-btn" onclick="changeGridVal(-1)">-</button>
-              <span class="ctrl-value" id="grid-val-txt">4</span>
-              <button class="ctrl-btn" onclick="changeGridVal(1)">+</button>
-            </div>
-          </div>
-          <div class="panel-group half">
-            <label>🔄 배경 회전 속도</label>
-            <div class="btn-controller">
-              <button class="ctrl-btn" onclick="changeSpeedVal(-1)">-</button>
-              <span class="ctrl-value" id="speed-val-txt">4</span>
-              <button class="ctrl-btn" onclick="changeSpeedVal(1)">+</button>
-            </div>
+        <div class="panel-group">
+          <label>🏁 배경 격자 크기 (도막)</label>
+          <div class="btn-controller">
+            <button class="ctrl-btn" onclick="changeGridVal(-1)">-</button>
+            <span class="ctrl-value" id="grid-val-txt">4</span>
+            <button class="ctrl-btn" onclick="changeGridVal(1)">+</button>
           </div>
         </div>
 
@@ -142,6 +117,15 @@
             <button class="ctrl-btn" onclick="changeRangeVal(0.1)">+</button>
           </div>
         </div>
+
+        <div class="panel-group">
+          <label>🔄 배경 회전 속도</label>
+          <div class="btn-controller">
+            <button class="ctrl-btn" onclick="changeSpeedVal(-1)">-</button>
+            <span class="ctrl-value" id="speed-val-txt">4</span>
+            <button class="ctrl-btn" onclick="changeSpeedVal(1)">+</button>
+          </div>
+        </div>
         
         <button class="start-btn" onclick="startSingleVRTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
       </div>
@@ -149,7 +133,7 @@
       <div id="active-dashboard-area" style="display: none;">
         <div class="dashboard-panel">
           <div class="dash-row">
-            <div class="dash-item">⏳ 남은 훈련 시간<span class="dash-num" id="panel-time-txt">00분 00초</span></div>
+            <div class="dash-item">⏱️ 현재 시간 경과<span class="dash-num" id="panel-time-txt">00분 00초</span></div>
             <div class="dash-item">🎈 터진 풍선 카운트<span class="dash-num" id="panel-pop-txt">0 개</span></div>
           </div>
         </div>
@@ -165,11 +149,17 @@
     
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
+        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
+        
+        <a-ring id="gaze-ring-left" radius-inner="0.04" radius-outer="0.06" color="#000000" position="0 0 -1" material="shader: flat; opacity: 1.0; depthTest: false;" stereo-eye-lock="eye: left" visible="false"></a-ring>
+        
+        <a-ring id="gaze-ring-right" radius-inner="0.04" radius-outer="0.06" color="#000000" position="0 0 -1" material="shader: flat; opacity: 1.0; depthTest: false;" stereo-eye-lock="eye: right" visible="false"></a-ring>
+
         <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
-          <a-text id="hud-text-left" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
+          <a-text id="hud-text-left" value="TIME: 0s\nPOP: 0" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
         </a-entity>
         <a-entity id="hud-right" position="0.03 0.35 -1" stereo-eye-lock="eye: right" visible="false">
-          <a-text id="hud-text-right" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
+          <a-text id="hud-text-right" value="TIME: 0s\nPOP: 0" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
         </a-entity>
       </a-entity>
     </a-entity>
@@ -177,13 +167,11 @@
     <a-entity id="magic-eye-board" visible="false">
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
         <a-sphere id="balloon-left" color="#ff2a2a"><a-cone id="cone-left" color="#cc1111"></a-cone></a-sphere>
-        <a-ring id="gaze-ring-left" radius-inner="1.5" radius-outer="2.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
-      
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
         <a-sphere id="balloon-right" color="#10b981"><a-cone id="cone-right" color="#047857"></a-cone></a-sphere>
-        <a-ring id="gaze-ring-right" radius-inner="1.5" radius-outer="2.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
+      <a-entity id="gaze-collision-trigger" class="gaze-secure-trigger" material="visible: false;" stereo-eye-lock="eye: both"></a-entity>
     </a-entity>
     <a-entity id="particle-group"></a-entity>
   </a-scene>
@@ -194,12 +182,9 @@
     let isTrainingActive = false;
     let isPopping = false;
     let elapsedInterval = null;
-    
-    let remainingSeconds = 180; 
-    let totalDurationSet = 180;
-
+    let totalSecondsElapsed = 0; 
     let activeTurn = "left"; 
-    let currentX = 0, currentY = 1.6, currentZ = -48.5; 
+    let currentX = 0, currentY = 1.6, currentZ = -16.0;
     let gazeTimer = null;
     let rotX = 0, rotY = 0, rotZ = 0;
     
@@ -210,8 +195,7 @@
     let eyeModeSetting = "alternating";
     let runModeSetting = "manual";
     let manualDirectionSetting = "right";
-    
-    let autoChangeInterval = 20; 
+    let autoChangeInterval = 120; 
     let autoDirectionStep = 0; 
     let autoTimerCounter = 0;
 
@@ -241,35 +225,28 @@
 
     function toggleRunModeUI(mode) {
       if(mode === 'auto') {
-        document.getElementById('manual-mode-options').style.display = 'none';
-        document.getElementById('auto-mode-options').style.display = 'block';
+        document.getElementById('manual-dir-group').style.display = 'none';
+        document.getElementById('auto-interval-group').style.display = 'block';
       } else {
-        document.getElementById('manual-mode-options').style.display = 'block';
-        document.getElementById('auto-mode-options').style.display = 'none';
+        document.getElementById('manual-dir-group').style.display = 'block';
+        document.getElementById('auto-interval-group').style.display = 'none';
       }
     }
 
+    // [실시간 핵심 스크립트] 치료사 조종창 모니터 전광판 및 VR 내부 HUD 동시 동기화 장치
     function updateDataCounters() {
-      if (remainingSeconds <= 0) {
-        document.getElementById('panel-time-txt').innerText = "훈련 완료!";
-        document.getElementById('panel-time-txt').style.color = "#22c55e";
-        
-        let completionStr = `🎉 DONE!\n🎈 POP: ${balloonPopCount}`;
-        document.getElementById('hud-text-left').setAttribute('value', completionStr);
-        document.getElementById('hud-text-right').setAttribute('value', completionStr);
-        return;
-      }
-
-      let min = Math.floor(remainingSeconds / 60);
-      let sec = remainingSeconds % 60;
+      let min = Math.floor(totalSecondsElapsed / 60);
+      let sec = totalSecondsElapsed % 60;
       
       let pMin = String(min).padStart(2, '0');
       let pSec = String(sec).padStart(2, '0');
       
+      // 1. 외부 모니터 전광판 텍스트 동기화 (큼직하게 갱신)
       document.getElementById('panel-time-txt').innerText = `${pMin}분 ${pSec}초`;
       document.getElementById('panel-pop-txt').innerText = `${balloonPopCount} 개`;
       
-      let hudStr = `⏳ ${min}m ${sec}s\n🎈 POP: ${balloonPopCount}`;
+      // 2. VR 헤드셋 내부 HUD 텍스트 동기화
+      let hudStr = `⏱️ ${min}m ${sec}s\n🎈 POP: ${balloonPopCount}`;
       document.getElementById('hud-text-left').setAttribute('value', hudStr);
       document.getElementById('hud-text-right').setAttribute('value', hudStr);
     }
@@ -281,18 +258,15 @@
       runModeSetting = document.getElementById('run-mode-select').value;
       
       if (runModeSetting === "auto") {
-        totalDurationSet = parseInt(document.getElementById('auto-time-select').value);
-        autoChangeInterval = totalDurationSet / 6; 
+        autoChangeInterval = parseInt(document.getElementById('auto-interval-select').value);
       } else {
-        totalDurationSet = parseInt(document.getElementById('manual-time-select').value);
         manualDirectionSetting = document.getElementById('manual-dir-select').value;
       }
-      
-      remainingSeconds = totalDurationSet;
 
       if (eyeModeSetting === "rightOnly") activeTurn = "right";
       else activeTurn = "left";
 
+      // 설정창을 가리고, 실시간 대형 모니터 전광판을 표출합니다.
       document.getElementById('settings-input-area').style.display = 'none';
       document.getElementById('active-dashboard-area').style.display = 'block';
       
@@ -302,6 +276,7 @@
       document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       renderRandomTargetsOnly();
       
+      totalSecondsElapsed = 0;
       autoTimerCounter = 0;
       autoDirectionStep = 0;
       balloonPopCount = 0;
@@ -310,19 +285,14 @@
       if (elapsedInterval) clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
         if (!isTrainingActive) return;
+        totalSecondsElapsed++;
         
-        if (remainingSeconds > 0) {
-          remainingSeconds--;
-          
-          if (runModeSetting === "auto") {
-            autoTimerCounter++;
-            if (autoTimerCounter >= autoChangeInterval) {
-              autoTimerCounter = 0;
-              autoDirectionStep = (autoDirectionStep + 1) % 6; 
-            }
+        if (runModeSetting === "auto") {
+          autoTimerCounter++;
+          if (autoTimerCounter >= autoChangeInterval) {
+            autoTimerCounter = 0;
+            autoDirectionStep = (autoDirectionStep + 1) % 6; 
           }
-        } else {
-          clearInterval(elapsedInterval);
         }
 
         updateDataCounters();
@@ -351,87 +321,87 @@
       }
     }
 
+    // ★ [절대 가이드 규칙 사수] 현재 검은 원 위치와 풍선 좌표 1:1 완벽 추적 융합 배치
     function renderRandomTargetsOnly() {
       if (!isTrainingActive) return;
       
       let camPos = {x: 0, y: 1.6, z: 0};
-      let zOffset = 48.5; 
+      let zOffset = 16.0; 
       let baseZ = camPos.z - zOffset;
+      let spreadFactor = zOffset / 4.2;
       
-      let spreadFactor = zOffset / 4.2; 
-      
-      let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.25 * spreadFactor);
-      let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 0.95 * spreadFactor);
+      let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.3 * spreadFactor);
+      let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 1.0 * spreadFactor);
       if (randY < camPos.y - (0.5 * spreadFactor)) randY = camPos.y - (0.5 * spreadFactor);
       if (randY > camPos.y + (0.7 * spreadFactor)) randY = camPos.y + (0.7 * spreadFactor);
       
       currentX = randX; currentY = randY; currentZ = baseZ;
 
+      const ringLeft = document.getElementById('gaze-ring-left');
+      const ringRight = document.getElementById('gaze-ring-right');
       const hudL = document.getElementById('hud-left');
       const hudR = document.getElementById('hud-right');
       const cLeft = document.getElementById('left-eye-container');
       const cRight = document.getElementById('right-eye-container');
-      
       const bLeft = document.getElementById('balloon-left');
       const bRight = document.getElementById('balloon-right');
-      const rLeft = document.getElementById('gaze-ring-left');
-      const rRight = document.getElementById('gaze-ring-right');
+      const secureTrigger = document.getElementById('gaze-collision-trigger');
 
       if (eyeModeSetting === "leftOnly") {
         activeTurn = "left";
+        ringLeft.setAttribute('visible', 'true'); ringRight.setAttribute('visible', 'false');
         hudL.setAttribute('visible', 'true'); hudR.setAttribute('visible', 'false');
         cLeft.setAttribute('visible', 'true'); cRight.setAttribute('visible', 'false');
       } else if (eyeModeSetting === "rightOnly") {
         activeTurn = "right";
+        ringLeft.setAttribute('visible', 'false'); ringRight.setAttribute('visible', 'true');
         hudL.setAttribute('visible', 'false'); hudR.setAttribute('visible', 'true');
         cLeft.setAttribute('visible', 'false'); cRight.setAttribute('visible', 'true');
       } else {
         if (activeTurn === "left") {
+          ringLeft.setAttribute('visible', 'true'); ringRight.setAttribute('visible', 'false');
           hudL.setAttribute('visible', 'true'); hudR.setAttribute('visible', 'false');
           cLeft.setAttribute('visible', 'true'); cRight.setAttribute('visible', 'false');
         } else {
+          ringLeft.setAttribute('visible', 'false'); ringRight.setAttribute('visible', 'true');
           hudL.setAttribute('visible', 'false'); hudR.setAttribute('visible', 'true');
           cLeft.setAttribute('visible', 'false'); cRight.setAttribute('visible', 'true');
         }
       }
 
       bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bLeft.setAttribute('radius', '1.6'); 
+      bLeft.setAttribute('radius', '1.80');
       bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-      bRight.setAttribute('radius', '1.6');
+      bRight.setAttribute('radius', '1.80');
 
-      let ipdShift = 0.485; 
-      rLeft.setAttribute('position', `${randX - ipdShift} ${randY} ${baseZ + 0.05}`);
-      rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.05}`);
+      let localXLeft = (randX - camPos.x) / (zOffset) - 0.03;
+      let localXRight = (randX - camPos.x) / (zOffset) + 0.03;
+      let localY = (randY - camPos.y) / (zOffset);
+      
+      ringLeft.setAttribute('position', `${localXLeft} ${localY} -1`);
+      ringRight.setAttribute('position', `${localXRight} ${localY} -1`);
+
+      if (secureTrigger) {
+        secureTrigger.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+        secureTrigger.setAttribute('geometry', `primitive: sphere; radius: 2.5`);
+        if (!isPopping && !secureTrigger.classList.contains('gaze-secure-trigger')) secureTrigger.classList.add('gaze-secure-trigger');
+      }
     }
 
-    // ★ [완전 해결] 판정 허용 점수를 0.28에서 0.65로 대폭 늘려, 링 내부에 시선이 들어오면 무조건 트리거 작동하게 매칭
-    window.checkTargetGazeVectorMathInternal = function() {
+    window.checkTargetGazeIntersectionInternal = function() {
       if (!isTrainingActive || isPopping) return;
-      
-      const cameraEl = document.getElementById('mainCamera');
-      if (!cameraEl) return;
-      
-      const cameraObj = cameraEl.getObject3D('camera');
-      if (!cameraObj) return;
-      
-      const vGaze = new THREE.Vector3(0, 0, -1);
-      vGaze.applyQuaternion(cameraEl.object3D.quaternion); 
-      vGaze.normalize();
-      
-      const vTarget = new THREE.Vector3(currentX, currentY, currentZ);
-      vTarget.normalize();
-      
-      const matchScore = vGaze.distanceTo(vTarget);
-      
-      // 0.65 마진은 검은 링 안쪽 영역 전체를 완벽히 포괄하는 수학적 수치입니다.
-      if (matchScore < 0.65) {
+      const raycasterEl = document.getElementById('centerFixationRay');
+      if (!raycasterEl) return;
+      let raycasterComponent = raycasterEl.components.raycaster;
+      if (raycasterComponent && raycasterComponent.intersections && raycasterComponent.intersections.length > 0) {
         if (!gazeTimer) {
           gazeTimer = setTimeout(() => {
+            const secureTrigger = document.getElementById('gaze-collision-trigger');
+            if (secureTrigger) secureTrigger.classList.remove('gaze-secure-trigger');
             isPopping = true;
             gazeTimer = null;
             popTargetSuccess();
-          }, 1000); 
+          }, 1000);
         }
       } else if (gazeTimer) {
         clearTimeout(gazeTimer);
@@ -443,7 +413,7 @@
       playPopSound();
       balloonPopCount++; 
       updateDataCounters(); 
-      triggerParticlesEmission(currentX, currentY, currentZ, 25);
+      triggerParticlesEmission(currentX, currentY, currentZ, 30);
       
       if (eyeModeSetting === "alternating") {
         activeTurn = (activeTurn === "left") ? "right" : "left";
@@ -500,10 +470,10 @@
       const pGroup = document.getElementById('particle-group');
       for (let i = 0; i < count; i++) {
         const p = document.createElement('a-box');
-        p.setAttribute('width', '0.2').setAttribute('height', '0.2').setAttribute('depth', '0.2');
+        p.setAttribute('width', '0.12'); p.setAttribute('height', '0.12'); p.setAttribute('depth', '0.12');
         p.setAttribute('color', ['#ff0055', '#ffff00', '#00ffcc', '#38bdf8'][Math.floor(Math.random() * 4)]);
         p.setAttribute('position', `${x} ${y} ${z}`);
-        const vx = (Math.random() - 0.5) * 10, vy = (Math.random() - 0.5) * 10 + 4, vz = (Math.random() - 0.5) * 10;
+        const vx = (Math.random() - 0.5) * 6, vy = (Math.random() - 0.5) * 6 + 2.5, vz = (Math.random() - 0.5) * 6;
         pGroup.appendChild(p);
         let age = 0;
         const t = setInterval(() => {
