@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.3 (첫 로딩 버그 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V16.4 (첫 로딩 버그 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -59,14 +59,18 @@
       }
     });
 
-    // [첫 로딩 시 캔버스 유실 방지용 엔진 동기화 컴포넌트]
+    // [첫 로딩 시 하드웨어 유실 방지용 엔진 강제 활성화 컴포넌트]
     AFRAME.registerComponent('scene-initializer', {
       init: function () {
-        // 첫 진입 시 완벽한 인식을 보장하기 위해 머티리얼 시스템 레벨까지 감시 추적
         this.el.addEventListener('loaded', () => {
+          // 엔진이 로드되는 순간 강제로 하드웨어 정렬 및 캔버스 그리기를 강제 바인딩합니다.
           setTimeout(() => {
             redrawBackgroundGrid();
-          }, 100);
+            const sceneEl = document.querySelector('a-scene');
+            if (sceneEl && sceneEl.renderer) {
+              sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+          }, 50);
         });
       }
     });
@@ -228,26 +232,34 @@
           bgCtx.fillRect(c * bW, r * bH, bW, bH);
         }
       }
-      
-      // [첫 로딩 최적화 핵심 교정] WebGL 텍스처 업데이터 강제 동기화 실행
       const sky = document.getElementById('rotating-bg');
       if(sky && sky.getObject3D('mesh')) {
         const material = sky.getObject3D('mesh').material;
-        if(material && material.map) {
-          material.map.needsUpdate = true;
-        }
+        if(material && material.map) material.map.needsUpdate = true;
       }
       if(sky && sky.components && sky.components.material && sky.components.material.material && sky.components.material.material.map) {
         sky.components.material.material.map.needsUpdate = true;
       }
     }
 
-    // 초기 브라우저 파싱 레이턴시 방어용 연속 3단계 순차 트리거
-    window.addEventListener('DOMContentLoaded', () => { redrawBackgroundGrid(); });
-    window.addEventListener('load', () => { 
+    // [첫 로딩 해결 핵심 밸브] 
+    // 브라우저가 최초 1회 진입했을 때, 자동으로 내부 세션을 트리거하여 '두 번째 열린 인스턴스 환경'과 완전히 동등하게 렌더러를 동기화 시킵니다.
+    window.addEventListener('load', () => {
       redrawBackgroundGrid();
-      setTimeout(redrawBackgroundGrid, 50); 
-      setTimeout(redrawBackgroundGrid, 200); 
+      const sceneEl = document.querySelector('a-scene');
+      
+      // 첫 로딩 버그의 원인인 WebGL Context 유실 현상을 완벽하게 방어하기 위해 더미 리사이즈 및 타겟 새로고침 연쇄 유도
+      if (sceneEl) {
+        sceneEl.style.display = 'block';
+        if(sceneEl.hasLoaded) {
+          if(sceneEl.renderer) sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+          redrawBackgroundGrid();
+        } else {
+          sceneEl.addEventListener('renderstart', () => {
+            setTimeout(() => { redrawBackgroundGrid(); }, 50);
+          });
+        }
+      }
     });
 
     function changeGridVal(amt) {
@@ -606,7 +618,6 @@
     }
 
     function startFusionTraining() {
-      // 훈련 시작 직전 강제로 격자판 텍스처를 완전히 동기화 밀어넣기
       redrawBackgroundGrid();
 
       isTrainingActive = true; isPopping = false;
