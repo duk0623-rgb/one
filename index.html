@@ -2,12 +2,11 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 - 고글 전체화면 완결본</title>
+  <title>VR 시기능 훈련 시스템 - 원터치 일체형 완결본</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
     
-    /* 제어판 스타일 */
     #control-panel {
       position: absolute; top: 15px; left: 15px; z-index: 99999;
       background: rgba(11, 15, 26, 0.95); color: white; padding: 20px;
@@ -20,24 +19,15 @@
     label { display: block; margin-bottom: 6px; font-size: 12px; color: #cbd5e1; font-weight: bold; }
     select, input[type="range"] { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 12px; }
     .display-value { float: right; color: #38bdf8; font-weight: bold; }
-    .btn { width: 100%; padding: 12px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 14px; background: #22c55e; }
     
-    /* [핵심] 원장님이 말씀하신 전체 화면 유도 고글 오버레이 레이어 */
-    #vr-trigger-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0, 0, 0, 0.9); z-index: 100000;
-      flex-direction: column; align-items: center; justify-content: center;
+    /* 원장님 의견을 반영한 일체형 고글 버튼 스타일 */
+    .goggles-start-btn { 
+      width: 100%; padding: 15px; color: white; border: 2px solid #60a5fa; border-radius: 8px; 
+      font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 15px; 
+      background: #22c55e; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4);
+      transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-    .goggles-btn {
-      background: #3b82f6; color: white; padding: 20px 40px; font-size: 22px; font-weight: bold;
-      border: 3px solid #60a5fa; border-radius: 15px; cursor: pointer; animation: pulse 1.5s infinite;
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); display: flex; align-items: center; gap: 15px;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
+    .goggles-start-btn:hover { background: #16a34a; transform: scale(1.02); }
     
     #score-board { 
       position: fixed; top: 20px; right: 20px; z-index: 99995; 
@@ -58,7 +48,6 @@
   </style>
 
   <script>
-    // A-Frame 컴포넌트 안전 선언
     AFRAME.registerComponent('stereo-eye-lock', {
       schema: { eye: {type: 'string', default: 'both'} },
       init: function () {
@@ -79,13 +68,6 @@
 <body>
 
   <canvas id="bgCheckerCanvas" width="512" height="512" style="display:none;"></canvas>
-
-  <div id="vr-trigger-overlay">
-    <button class="goggles-btn" onclick="executeVREnterFullscreen()">
-      🥽 VR 고글 모드 활성화 (전체화면)
-    </button>
-    <p style="color: #64748b; margin-top: 15px; font-size: 13px;">클릭하시면 시선 추적 센서와 전체 화면이 단 한 번에 깨어납니다.</p>
-  </div>
 
   <div id="control-panel">
     <div class="center-info">시기능 시지각 전문 훈련 기관</div>
@@ -152,7 +134,9 @@
       <input type="range" id="bg-speed-slider" min="0" max="60" value="2" step="1">
     </div>
     
-    <button id="start-btn" class="btn" onclick="showGogglesOverlay()">▶️ 훈련 시작</button>
+    <button id="start-btn" class="goggles-start-btn" onclick="executeOneTouchVREnergy()">
+      🥽 시기능 훈련 시작 (전체화면)
+    </button>
   </div>
 
   <div id="score-board">
@@ -215,7 +199,12 @@
     let rotX = 0; let rotY = 0; let rotZ = 0;
 
     function initAudioContext() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
     }
 
     function redrawBackgroundGrid() {
@@ -263,15 +252,9 @@
       setupVRHardwareLayers(); animateBackgroundAndScroll(); requestAnimationFrame(checkTargetGazeIntersection);
     });
 
-    // 1단계: 훈련 시작 버튼 누르면 중간 고글 오버레이 화면판을 띄움
-    function showGogglesOverlay() {
-      initAudioContext();
-      document.getElementById('vr-trigger-overlay').style.style.display = 'flex';
-    }
-
-    // 2단계: 고글 버튼을 누를 때 브라우저의 '전체 화면' 권한과 VR 모드를 한 몸으로 결합하여 단 한 번에 구동
-    function executeVREnterFullscreen() {
-      document.getElementById('vr-trigger-overlay').style.display = 'none';
+    /* [마스터 통합 트리거] 하나의 버튼 클릭으로 오디오 활성화 + 전체화면 + VR 엔진 연동을 동시 처리 */
+    function executeOneTouchVREnergy() {
+      initAudioContext(); // 소리 차단 보안 완벽 해제
       
       isTrainingActive = true; isPopping = false;
       targetSeconds = parseInt(document.getElementById('training-time-select').value);
@@ -283,7 +266,6 @@
       activeTurn = (document.getElementById('eye-mode-select').value === "rightOnly") ? "right" : "left";
       document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       
-      // 레이캐스터 강제 리프레시 및 타겟 생성
       const raycasterEl = document.getElementById('centerFixationRay');
       if (raycasterEl && raycasterEl.components.raycaster) {
         raycasterEl.components.raycaster.refreshObjects();
@@ -292,11 +274,10 @@
       renderRandomTargetsOnly(); 
       startElapsedClock();
 
-      // [핵심] 전체 화면과 VR 진입 동시 강제 실행
+      // 클릭 시점의 사용자 인터랙션을 사용하여 전체화면 및 VR 모드 진입 동시 강제
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl) {
         sceneEl.enterVR();
-        // 브라우저 소망 격리 차단용 전체화면 API 구동
         const docEl = document.documentElement;
         if (docEl.requestFullscreen) { docEl.requestFullscreen(); }
         else if (docEl.mozRequestFullScreen) { docEl.mozRequestFullScreen(); }
