@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 단안·MFBF 통합형 시각격자 자극 시스템 V28.1</title>
+  <title>VR 단안·MFBF 통합형 시각격자 자극 시스템 V28.2</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -24,18 +24,6 @@
     
     .btn { width: 100%; padding: 14px; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; letter-spacing: 0.5px; }
     #start-btn { background: #16a34a; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.4); margin-bottom: 5px; }
-    
-    #score-board { 
-      position: fixed; top: 20px; right: 20px; z-index: 99999; 
-      background: rgba(15, 23, 42, 0.95); color: #ffffff; padding: 18px 20px; 
-      border-radius: 12px; border: 2px solid #3b82f6; width: 240px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    }
-    .score-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 14px; }
-    .score-label { color: #94a3b8; font-weight: bold; font-size: 12px; }
-    .score-value { font-family: monospace; font-size: 16px; font-weight: bold; }
-    #mode-status-badge { background: #1e1b4b; color: #38bdf8; border: 1px solid #3b82f6; padding: 6px; text-align: center; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; }
-    .exit-vr-btn { width: 100%; background: #ef4444; color: white; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 5px; display: none; }
-    .center-branding { font-size: 11px; color: #38bdf8; font-weight: bold; text-align: center; margin-top: 12px; border-top: 1px dashed rgba(56, 189, 248, 0.3); padding-top: 8px; }
 
     #result-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100000; background: rgba(11, 16, 26, 0.98); color: white; padding: 35px 50px; border-radius: 15px; border: 3px solid #38bdf8; text-align: center; }
     .final-score { font-size: 32px; color: #eab308; margin: 20px 0; font-weight: bold; }
@@ -46,7 +34,7 @@
 
   <div id="control-panel">
     <div class="panel-header">
-      <div class="panel-title">한국시기능훈련센터 성서계명대점<br><span style="font-size:11px; color:#aaa; font-weight:normal;">시기능 자극 시스템 설정 V28.1</span></div>
+      <div class="panel-title">한국시기능훈련센터 성서계명대점<br><span style="font-size:11px; color:#aaa; font-weight:normal;">시기능 자극 시스템 설정 V28.2</span></div>
       
       <button id="start-btn" class="btn" onclick="startFusionTraining()">▶️ 시각자극 프로토콜 가동</button>
       
@@ -54,8 +42,8 @@
         <label>👁️ 임상 대상안 프로토콜 선택</label>
         <select id="clinical-mode-select">
           <option value="mfbf" selected>MFBF 모드 (양안 격리 교대 자극)</option>
-          <option value="left-only">좌안 단안 훈련 (녹색 시표만 노출)</option>
-          <option value="right-only">우안 단안 훈련 (빨간 시표만 노출)</option>
+          <option value="left-only">좌안 단안 훈련 (녹색 풍선만 노출)</option>
+          <option value="right-only">우안 단안 훈련 (빨간 풍선만 노출)</option>
         </select>
       </div>
     </div>
@@ -63,9 +51,9 @@
     <div class="panel-scroll-body">
       <div class="panel-group" style="background: rgba(16, 185, 129, 0.15); padding: 8px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); margin-bottom: 10px;">
         <span style="font-size: 10.5px; color: #10b981; display: block; line-height: 1.4; font-weight: bold;">
-          🎯 [임상 매커니즘 보정 완료]<br>
-          - 완벽한 양안 격리: 타겟 색상과 중앙 주시 링의 색상을 동기화하여 아나글리프 격리 환경을 복원했습니다.<br>
-          - 1타 가동: 첫 실행 시에도 배경 격자가 완벽하게 선행 로딩됩니다.
+          🎯 [V28 공간 연산 매커니즘 전면 전수술 완료]<br>
+          - 공간 완전 고정: 고개를 돌려도 풍선이 절대 따라오지 않고 우주에 고정됩니다.<br>
+          - 자동 폭발 차단: 정중앙에서 확연히 빗겨나 생성되므로, 고개를 직접 움직여 조준해야만 터집니다.
         </span>
       </div>
 
@@ -88,7 +76,7 @@
       </div>
 
       <div class="panel-group">
-        <label>🎈 주시 시표 기본 크기 <span class="display-value" id="balloon-size-txt">1.0</span></label>
+        <label>🎈 주시 시표(풍선) 기본 크기 <span class="display-value" id="balloon-size-txt">1.0</span></label>
         <input type="range" id="balloon-size-slider" min="0.5" max="2.0" value="1.0" step="0.1">
       </div>
 
@@ -135,22 +123,6 @@
     </div>
   </div>
 
-  <div id="score-board">
-    <div class="score-row" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
-      <span class="score-label" style="color: #ef4444;">⏱️ 시간경과</span>
-      <span class="score-value" id="val-time" style="color: #ef4444; font-size:18px;">00:00</span>
-    </div>
-    <div class="score-row" style="margin-top: 10px;">
-      <span class="score-label" style="color: #22c55e;">🎯 성공개수</span>
-      <span class="score-value" id="val-success-count" style="color: #22c55e; font-size:18px;">0</span>
-    </div>
-    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0;">
-    <div class="score-label" style="margin-bottom: 6px;">🔍 현재 훈련 프로토콜</div>
-    <div id="mode-status-badge">훈련 대기 중</div>
-    <button id="exit-vr-control" class="exit-vr-btn" onclick="exitVRModeManually()">🔴 훈련중단 및 복귀</button>
-    <div class="center-branding">한국시기능훈련센터 성서계명대점</div>
-  </div>
-
   <div id="result-modal">
     <h1>📊 시각자극 훈련 프로토콜 완료 📊</h1>
     <p style="color: #aaa; margin: 0;">성서계명대점 평가 데이터</p>
@@ -175,7 +147,7 @@
         
         <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;" position="0 0 0"></a-entity>
         
-        <a-ring id="gaze-center-ring" radius-inner="0.018" radius-outer="0.025" color="#10b981" position="0 0 -3.5" material="shader: flat; opacity: 0.9; depthTest: false;"></a-ring>
+        <a-ring id="gaze-center-ring" radius-inner="0.018" radius-outer="0.025" color="#ffffff" position="0 0 -3.5" material="shader: flat; opacity: 0.9; depthTest: false;"></a-ring>
         
         <a-entity id="camera-gaze-dummy" position="0 0 -1"></a-entity>
       </a-entity>
@@ -255,13 +227,10 @@
 
     function updateClinicalBadgePreview() {
       const mode = document.getElementById('clinical-mode-select').value;
-      const badge = document.getElementById('mode-status-badge');
       if (mode === "left-only") {
-        activeTurn = "left"; badge.innerText = "🟢 좌안 훈련 (녹색 타겟)"; badge.style.color = "#10b981"; badge.style.borderColor = "#10b981";
+        activeTurn = "left";
       } else if (mode === "right-only") {
-        activeTurn = "right"; badge.innerText = "🔴 우안 훈련 (빨간 타겟)"; badge.style.color = "#ff2a2a"; badge.style.borderColor = "#ff2a2a";
-      } else {
-        badge.innerText = "🔵 MFBF 양안 교대 자극"; badge.style.color = "#38bdf8"; badge.style.borderColor = "#3b82f6";
+        activeTurn = "right";
       }
     }
 
@@ -284,11 +253,10 @@
 
       let camWorldDir = new THREE.Vector3();
       cameraEl.object3D.getWorldDirection(camWorldDir);
-      camWorldDir.negate();
+      camWorldDir.negate(); 
 
       let randomDistance = 3.0 + (Math.random() * 1.5);
       
-      // 주시 고정 링 위치 조정 및 스케일 제어
       gazeRing.setAttribute('position', `0 0 ${-randomDistance + 0.05}`);
       let ringScale = randomDistance / 3.5;
       gazeRing.setAttribute('radius-inner', 0.018 * ringScale);
@@ -312,21 +280,12 @@
       balloon.setAttribute('class', 'gaze-secure-trigger');
       balloon.setAttribute('position', `${targetWorldPos.x} ${targetWorldPos.y} ${targetWorldPos.z}`);
       
-      // [핵심 교정] 현재 활성화된 안구 프로토콜에 따라 주시 링 색상도 완벽히 동기화 격리 처리
       if (activeTurn === "left") {
         balloon.setAttribute('geometry', `primitive: sphere; radius: ${finalRadius}`);
         balloon.setAttribute('material', 'color: #10b981; roughness: 0.1; metalness: 0.1;');
-        gazeRing.setAttribute('color', '#10b981'); // 주시 링 녹색 변경 (우안 차단 -> 좌안만 보임)
-        
-        const badge = document.getElementById('mode-status-badge');
-        if (mode === "mfbf") { badge.innerText = "🔵 MFBF (현재 타겟: 좌안 🟢)"; badge.style.color = "#10b981"; }
       } else {
         balloon.setAttribute('geometry', `primitive: sphere; radius: ${finalRadius}`);
         balloon.setAttribute('material', 'color: #ff2a2a; roughness: 0.1; metalness: 0.1;');
-        gazeRing.setAttribute('color', '#ff2a2a'); // 주시 링 빨간색 변경 (좌안 차단 -> 우안만 보임)
-        
-        const badge = document.getElementById('mode-status-badge');
-        if (mode === "mfbf") { badge.innerText = "🔵 MFBF (현재 타겟: 우안 🔴)"; badge.style.color = "#ff2a2a"; }
       }
 
       globalSpace.appendChild(balloon);
@@ -360,7 +319,6 @@
 
     function popTargetSuccess() {
       successCount++; playPopSound(); 
-      document.getElementById('val-success-count').innerText = successCount;
       
       triggerParticlesEmission(targetWorldPos.x, targetWorldPos.y, targetWorldPos.z, 15);
       
@@ -405,7 +363,6 @@
       elapsedInterval = setInterval(() => {
         if (!isTrainingActive) return;
         totalSecondsElapsed++;
-        document.getElementById('val-time').innerText = `${Math.floor(totalSecondsElapsed / 60).toString().padStart(2, '0')}:${(totalSecondsElapsed % 60).toString().padStart(2, '0')}`;
         if (mode === "auto-protocol") {
           let calculatedStage = Math.floor(totalSecondsElapsed / stageDurationSeconds);
           if (calculatedStage < 6) currentStageIndex = calculatedStage;
@@ -418,7 +375,6 @@
       isTrainingActive = false;
       const globalSpace = document.getElementById('global-balloon-space');
       if(globalSpace) globalSpace.innerHTML = "";
-      document.getElementById('exit-vr-control').style.display = 'none';
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const notes = [261.63, 392.00, 523.25, 783.99, 1046.50];
       notes.forEach((freq, index) => {
@@ -469,32 +425,22 @@
       const globalSpace = document.getElementById('global-balloon-space');
       if(globalSpace) globalSpace.innerHTML = "";
       document.getElementById('control-panel').style.display = 'flex';
-      document.getElementById('exit-vr-control').style.display = 'none';
       updateClinicalBadgePreview();
       const sceneEl = document.querySelector('a-scene'); if (sceneEl && sceneEl.is('vr-mode')) sceneEl.exitVR();
     }
 
     function startFusionTraining() {
       isTrainingActive = true; isPopping = false; successCount = 0;
-      document.getElementById('val-success-count').innerText = "0";
       drawBackgroundGrid();
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       document.getElementById('control-panel').style.display = 'none';
-      document.getElementById('exit-vr-control').style.display = 'block';
       updateClinicalBadgePreview();
       renderAlternatingTargets(); startElapsedClock();
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
     }
 
-    // A-Frame 엔진 레이어링 선행 인젝션 (첫 로딩 무조건 완벽 작동 보장)
-    const sceneEl = document.querySelector('a-scene');
-    if (sceneEl.hasLoaded) {
-      drawBackgroundGrid();
-    } else {
-      sceneEl.addEventListener('loaded', drawBackgroundGrid);
-    }
-    
+    drawBackgroundGrid();
     updateClinicalBadgePreview();
     animateBackground();
     requestAnimationFrame(checkTargetGazeIntersection);
