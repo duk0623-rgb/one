@@ -2,65 +2,72 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.0 - 수정본</title>
+  <title>VR 시기능 훈련 시스템 V16.0</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
-    /* ... 이전 스타일 동일하게 작성 ... */
+    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
+    #control-panel { position: absolute; top: 15px; left: 15px; z-index: 99999; background: rgba(11, 15, 26, 0.95); color: white; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; width: 310px; }
+    .btn { width: 100%; padding: 10px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; background: #22c55e; }
   </style>
 </head>
 <body>
+
+  <div id="control-panel">
+    <div class="center-title">한국시기능훈련센터 성서계명대점</div>
+    <button id="start-btn" class="btn" onclick="startTraining()">▶️ 훈련 시작</button>
+  </div>
 
   <a-scene id="scene" background="color: #000000">
     <a-assets>
       <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
     </a-assets>
-    <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; repeat: 16 16; side: back;"></a-sky>
-    
+
+    <a-sky id="rotating-bg" src="#bgCheckerCanvas" material="shader: flat;"></a-sky>
+
     <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
-    
     <a-entity id="magic-eye-board" visible="true">
-      <a-sphere id="balloon-left" color="#ff2a2a" position="0 1.6 -5" radius="0.5"></a-sphere>
+      <a-sphere id="balloon" color="#ff2a2a" position="0 1.6 -5" radius="0.5"></a-sphere>
     </a-entity>
   </a-scene>
 
   <script>
-    // 1. 배경 그리기 함수를 별도로 분리
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
-      bgCtx.fillStyle = '#000000';
+      // 배경 그리기 로직
+      bgCtx.fillStyle = '#000';
       bgCtx.fillRect(0, 0, 512, 512);
-      bgCtx.fillStyle = '#FFFFFF';
-      // ... (기존 격자 그리기 로직) ...
-      
+      bgCtx.fillStyle = '#FFF';
+      for(let i=0; i<8; i++) {
+        for(let j=0; j<8; j++) {
+            if((i+j)%2 === 0) bgCtx.fillRect(i*64, j*64, 64, 64);
+        }
+      }
+      // 텍스처 업데이트 알림
       const sky = document.getElementById('rotating-bg');
-      if(sky && sky.components.material) {
+      if (sky.components.material) {
         sky.components.material.material.map.needsUpdate = true;
       }
     }
 
-    // 2. 훈련 시작 함수: 순서 보장
-    function startFusionTraining() {
-      // 오디오 활성화
+    function startTraining() {
+      // 1. 오디오 컨텍스트 강제 활성화 (사용자 클릭 이벤트 안에서 실행)
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
 
-      // UI 숨김
-      document.getElementById('control-panel').style.display = 'none';
-
-      // 씬이 준비된 후 VR 진입
+      // 2. VR 진입
       const sceneEl = document.querySelector('a-scene');
       
-      // VR 진입 후 배경 재로딩 보장
+      // VR 진입 후 배경이 사라지는 현상 방지: 진입 완료 후 즉시 배경 다시 그리기
       sceneEl.addEventListener('enter-vr', () => {
-        setTimeout(redrawBackgroundGrid, 500); // VR 진입 직후 캔버스 강제 업데이트
+        setTimeout(redrawBackgroundGrid, 200); 
       }, { once: true });
 
       sceneEl.enterVR();
+      document.getElementById('control-panel').style.display = 'none';
     }
 
-    // 초기화 시 배경 그리기
+    // 초기 실행
     window.addEventListener('load', redrawBackgroundGrid);
   </script>
 </body>
