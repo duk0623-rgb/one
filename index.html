@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.2 (첫 로딩 버그 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V16.3 (첫 로딩 버그 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -62,7 +62,7 @@
     // [첫 로딩 시 캔버스 유실 방지용 엔진 동기화 컴포넌트]
     AFRAME.registerComponent('scene-initializer', {
       init: function () {
-        // 씬 내부의 모든 요소가 완벽히 준비되었을 때 배경 그리기를 실행
+        // 첫 진입 시 완벽한 인식을 보장하기 위해 머티리얼 시스템 레벨까지 감시 추적
         this.el.addEventListener('loaded', () => {
           setTimeout(() => {
             redrawBackgroundGrid();
@@ -228,14 +228,27 @@
           bgCtx.fillRect(c * bW, r * bH, bW, bH);
         }
       }
+      
+      // [첫 로딩 최적화 핵심 교정] WebGL 텍스처 업데이터 강제 동기화 실행
       const sky = document.getElementById('rotating-bg');
+      if(sky && sky.getObject3D('mesh')) {
+        const material = sky.getObject3D('mesh').material;
+        if(material && material.map) {
+          material.map.needsUpdate = true;
+        }
+      }
       if(sky && sky.components && sky.components.material && sky.components.material.material && sky.components.material.material.map) {
         sky.components.material.material.map.needsUpdate = true;
       }
     }
 
-    // 초기 브라우저 로딩 예외 방어용 다중 트리거
-    window.addEventListener('load', () => { setTimeout(redrawBackgroundGrid, 50); });
+    // 초기 브라우저 파싱 레이턴시 방어용 연속 3단계 순차 트리거
+    window.addEventListener('DOMContentLoaded', () => { redrawBackgroundGrid(); });
+    window.addEventListener('load', () => { 
+      redrawBackgroundGrid();
+      setTimeout(redrawBackgroundGrid, 50); 
+      setTimeout(redrawBackgroundGrid, 200); 
+    });
 
     function changeGridVal(amt) {
       rowsCols += amt;
@@ -593,7 +606,7 @@
     }
 
     function startFusionTraining() {
-      // 훈련 시작 전 격자판 완전 갱신 강제 수행
+      // 훈련 시작 직전 강제로 격자판 텍스처를 완전히 동기화 밀어넣기
       redrawBackgroundGrid();
 
       isTrainingActive = true; isPopping = false;
