@@ -2,14 +2,15 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V21.4 (링 복원 및 레이캐스터 관통 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V16.1 (초기 구동 버그 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
     
+    /* 좌측 통합 설정 컨트롤 패널 */
     #setup-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #070a12; color: #38bdf8; z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; box-sizing: border-box; }
-    
     .setup-box { width: 100%; max-width: 440px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 16px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
+    
     .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
     .center-title { font-size: 15px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #3b82f6; }
     
@@ -25,10 +26,18 @@
     .ctrl-btn:active { background: #1d4ed8; }
     .ctrl-value { font-size: 13px; color: #38bdf8; font-weight: bold; text-align: center; flex: 1; }
     
-    .dashboard-panel { margin-top: 5px; padding: 15px; background: #0f172a; border: 3px dashed #22c55e; border-radius: 10px; text-align: center; }
+    /* 우측 대형 모니터 대시보드 전광판 패널 */
+    #active-dashboard-area { display: none; margin-top: 5px; }
+    .dashboard-panel { padding: 15px; background: #0f172a; border: 3px dashed #22c55e; border-radius: 10px; text-align: center; }
     .dash-row { display: flex; flex-direction: column; gap: 10px; }
     .dash-item { font-size: 14px; color: #cbd5e1; font-weight: bold; }
     .dash-num { font-size: 28px; color: #eab308; font-weight: bold; display: block; margin-top: 4px; font-family: 'Courier New', monospace; }
+
+    /* 실시간 기록실 스타일 */
+    .history-container { margin-top: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; height: 130px; overflow-y: auto; padding: 5px; text-align: left; }
+    .history-item { font-family: monospace; font-size: 11px; border-bottom: 1px solid #1e293b; padding: 4px 2px; color: #cbd5e1; line-height: 1.3; }
+    .history-item.success { color: #4ade80; }
+    .history-item.fail { color: #f87171; }
 
     .start-btn { width: 100%; padding: 12px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 12px; font-size: 15px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
   </style>
@@ -48,24 +57,6 @@
         }
       }
     });
-
-    AFRAME.registerComponent('gaze-target-action', {
-      init: function () {
-        this.el.addEventListener('mouseenter', () => {
-          if (!window.isTrainingActive || window.isPopping) return;
-          window.startGazeTimerInternal();
-        });
-        this.el.addEventListener('mouseleave', () => {
-          window.clearGazeTimerInternal();
-        });
-      }
-    });
-
-    AFRAME.registerComponent('vr-loop-manager', {
-      tick: function (time, timeDelta) {
-        if (typeof window.animateBackgroundScrollInternal === 'function') window.animateBackgroundScrollInternal();
-      }
-    });
   </script>
 </head>
 <body>
@@ -75,6 +66,7 @@
       <div class="center-info">시기능 시지각 전문 훈련 기관</div>
       <div class="center-title">한국시기능훈련센터 성서계명대점</div>
       
+      <!-- 설정 입력 영역 -->
       <div id="settings-input-area">
         <div class="panel-group">
           <label>🎮 구동 모드 선택</label>
@@ -100,20 +92,18 @@
             <label>⏱️ 수동 모드 목표 훈련 시간</label>
             <select id="manual-time-select">
               <option value="60">1분 (01:00)</option>
-              <option value="180" selected>3분 (03:00)</option>
               <option value="300">5분 (05:00)</option>
-              <option value="420">7분 (07:00)</option>
-              <option value="600">10분 (10:00)</option>
+              <option value="600" selected>10분 (10:00)</option>
             </select>
           </div>
         </div>
 
         <div id="auto-mode-options" style="display: none;">
           <div class="panel-group">
-            <label>⏱️ 자동 모드 전체 훈련 시간</label>
-            <select id="auto-time-select">
-              <option value="120" selected>2분 자동 훈련 (20초당 방향 전환)</option>
-              <option value="180">3분 자동 훈련 (30초당 방향 전환)</option>
+            <label>🔄 자동 배경 전환 주기 설정</label>
+            <select id="auto-interval-select">
+              <option value="120" selected>2분 단위 자동 전환</option>
+              <option value="180">3분 단위 자동 전환</option>
             </select>
           </div>
         </div>
@@ -137,10 +127,10 @@
             </div>
           </div>
           <div class="panel-group half">
-            <label>🔄 배경 회전 속도</label>
+            <label>🔄 배경 스크롤 속도</label>
             <div class="btn-controller">
               <button class="ctrl-btn" onclick="changeSpeedVal(-1)">-</button>
-              <span class="ctrl-value" id="speed-val-txt">4</span>
+              <span class="ctrl-value" id="speed-val-txt">2</span>
               <button class="ctrl-btn" onclick="changeSpeedVal(1)">+</button>
             </div>
           </div>
@@ -155,107 +145,118 @@
           </div>
         </div>
         
-        <button class="start-btn" onclick="startSingleVRTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
+        <button class="start-btn" onclick="startFusionTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
       </div>
 
-      <div id="active-dashboard-area" style="display: none;">
+      <!-- 대형 모니터 전광판 패널 (훈련 중 활성화) -->
+      <div id="active-dashboard-area">
         <div class="dashboard-panel">
           <div class="dash-row">
             <div class="dash-item">⏳ 남은 훈련 시간<span class="dash-num" id="panel-time-txt">00분 00초</span></div>
-            <div class="dash-item">🎈 터진 풍선 카운트<span class="dash-num" id="panel-pop-txt">0 개</span></div>
+            <div class="dash-item">🎯 누적 훈련 점수<span class="dash-num" id="panel-pop-txt" style="color:#22c55e;">0000 점</span></div>
+            <div class="dash-item" style="font-size:12px; color:#cbd5e1; margin-top:2px;">
+              상태: <span id="active-eye-txt" style="font-weight:bold;">-</span> | 
+              자극: <span id="active-pattern-txt" style="font-weight:bold;">-</span>
+            </div>
           </div>
+          <div style="margin-top: 12px; font-size: 11px; font-weight: bold; color: #94a3b8; border-top: 1px solid #334155; padding-top: 6px; text-align: left;">📋 실시간 훈련 기록실</div>
+          <div class="history-container" id="history-log"></div>
         </div>
-        <button class="start-btn" style="background:#ef4444; box-shadow:0 4px 12px rgba(239,68,68,0.4);" onclick="location.reload();">훈련 종료 및 설정창 재생성</button>
+        <button class="start-btn" style="background:#ef4444; box-shadow:0 4px 12px rgba(239,68,68,0.4);" onclick="exitVRModeManually();">🔴 훈련 중단 및 설정창 복원</button>
       </div>
 
     </div>
   </div>
 
-  <a-scene id="vr-scene" background="color: #000000" vr-mode-ui="enabled: true" vr-loop-manager>
-    <a-assets><canvas id="bgCheckerCanvas" width="512" height="512"></canvas></a-assets>
+  <!-- VR 메인 씬 -->
+  <a-scene background="color: #000000" vr-mode-ui="enabled: true">
+    <a-assets>
+      <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
+    </a-assets>
+
     <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; repeat: 16 16; side: back;" stereo-eye-lock="eye: both"></a-sky>
-    
+
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-        <a-entity cursor="fuse: false;" raycaster="objects: .balloon-target, .ring-target; far: 60; interval: 50;" position="0 0 -1"></a-entity>
-        
-        <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
-          <a-text id="hud-text-left" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
-        </a-entity>
-        <a-entity id="hud-right" position="0.03 0.35 -1" stereo-eye-lock="eye: right" visible="false">
-          <a-text id="hud-text-right" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
-        </a-entity>
+        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
+        <a-ring id="gaze-ring-left" radius-inner="0.02" radius-outer="0.03" color="#000000" position="-0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: left"></a-ring>
+        <a-ring id="gaze-ring-right" radius-inner="0.02" radius-outer="0.03" color="#000000" position="0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: right"></a-ring>
       </a-entity>
     </a-entity>
 
     <a-entity id="magic-eye-board" visible="false">
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
-        <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a" radius="1.6">
-          <a-cone id="cone-left" color="#cc1111" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
+        <a-sphere id="balloon-left" color="#ff2a2a" material="roughness: 0.15; metalness: 0.2;">
+          <a-cone id="cone-left" color="#cc1111"></a-cone>
         </a-sphere>
-        <a-ring id="gaze-ring-left" class="ring-target" gaze-target-action radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
-        <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981" radius="1.6">
-          <a-cone id="cone-right" color="#047857" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
+        <a-sphere id="balloon-right" color="#10b981" material="roughness: 0.15; metalness: 0.2;">
+          <a-cone id="cone-right" color="#047857"></a-cone>
         </a-sphere>
-        <a-ring id="gaze-ring-right" class="ring-target" gaze-target-action radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
+
+      <a-entity id="gaze-collision-trigger" class="gaze-secure-trigger" material="visible: false;" stereo-eye-lock="eye: both"></a-entity>
     </a-entity>
+
     <a-entity id="particle-group"></a-entity>
   </a-scene>
 
   <script>
-    window.audioCtx = null;
-    window.balloonPopCount = 0; 
-    window.isTrainingActive = false;
-    window.isPopping = false;
-    let elapsedInterval = null;
-    
-    let remainingSeconds = 180; 
-    let totalDurationSet = 180;
-
-    let activeTurn = "left"; 
-    let currentX = 0, currentY = 1.6, currentZ = -45.0; 
-    let gazeTimer = null;
-    let rotX = 0, rotY = 0, rotZ = 0;
-    
     let rowsCols = 4;
-    let randomRange = 1.40;
-    let rotationSpeed = 4;
+    function redrawBackgroundGrid() {
+      const bgCanvas = document.getElementById('bgCheckerCanvas');
+      if (!bgCanvas) return;
+      const bgCtx = bgCanvas.getContext('2d');
+      const bSize = 512;
+      const bW = bSize / rowsCols; const bH = bSize / rowsCols;
+      bgCtx.clearRect(0, 0, bSize, bSize);
+      for (let r = 0; r < rowsCols; r++) {
+        for (let c = 0; c < rowsCols; c++) {
+          bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
+          bgCtx.fillRect(c * bW, r * bH, bW, bH);
+        }
+      }
+      const sky = document.getElementById('rotating-bg');
+      if(sky && sky.components && sky.components.material && sky.components.material.material && sky.components.material.material.map) {
+        sky.components.material.material.map.needsUpdate = true;
+      }
+    }
 
-    let eyeModeSetting = "alternating";
-    let runModeSetting = "manual";
-    let manualDirectionSetting = "right";
-    
-    let autoChangeInterval = 20; 
-    let autoDirectionStep = 0; 
-    let autoTimerCounter = 0;
-
-    const sceneEl = document.getElementById('vr-scene');
+    // 문서가 완전히 로드되거나 인터벌을 돌며 캔버스가 완비되었을 때 배경 그리기를 확실히 보장합니다.
+    window.addEventListener('DOMContentLoaded', () => { setTimeout(redrawBackgroundGrid, 100); });
 
     function changeGridVal(amt) {
       rowsCols += amt;
       if(rowsCols < 1) rowsCols = 1;
       if(rowsCols > 12) rowsCols = 12;
       document.getElementById('grid-val-txt').innerText = rowsCols;
-      if(window.isTrainingActive) redrawBackgroundGrid();
+      redrawBackgroundGrid();
     }
-
     function changeRangeVal(amt) {
       randomRange = parseFloat((randomRange + amt).toFixed(2));
       if(randomRange < 0.50) randomRange = 0.50;
       if(randomRange > 2.40) randomRange = 2.40;
       document.getElementById('range-val-txt').innerText = randomRange.toFixed(2);
+      if(isTrainingActive) { renderRandomTargetsOnly(); }
     }
-
     function changeSpeedVal(amt) {
       rotationSpeed += amt;
       if(rotationSpeed < 0) rotationSpeed = 0;
       if(rotationSpeed > 60) rotationSpeed = 60;
       document.getElementById('speed-val-txt').innerText = rotationSpeed;
     }
+
+    let audioCtx = null; let score = 0; let randomRange = 1.40; 
+    let rotationSpeed = 2; let isTrainingActive = false; let isPopping = false; 
+
+    let elapsedInterval = null; let totalSecondsElapsed = 0; let targetSeconds = 600;      
+    let activeTurn = "left"; 
+    let currentX = 0, currentY = 1.6, currentZ = -16.0;
+
+    let gazeTimer = null; let autoStep = 0; let internalAutoTime = 0;
+    let rotX = 0; let rotY = 0; let rotZ = 0;
 
     function toggleRunModeUI(mode) {
       if(mode === 'auto') {
@@ -267,263 +268,364 @@
       }
     }
 
-    function updateDataCounters() {
-      if (remainingSeconds <= 0) {
-        document.getElementById('panel-time-txt').innerText = "훈련 완료!";
-        document.getElementById('panel-time-txt').style.color = "#22c55e";
-        
-        let completionStr = `🎉 DONE!\n🎈 POP: ${window.balloonPopCount}`;
-        document.getElementById('hud-text-left').setAttribute('value', completionStr);
-        document.getElementById('hud-text-right').setAttribute('value', completionStr);
-        return;
-      }
+    function addHistoryLog(status, activeEye, typeMode) {
+      const logContainer = document.getElementById('history-log');
+      if(!logContainer) return;
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+      
+      let eyeTag = "OU";
+      if(typeMode === "leftOnly") eyeTag = "L";
+      else if(typeMode === "rightOnly") eyeTag = "R";
+      else { eyeTag = (activeEye === "left") ? "L" : "R"; }
 
-      let min = Math.floor(remainingSeconds / 60);
-      let sec = remainingSeconds % 60;
+      const logItem = document.createElement('div');
+      logItem.className = `history-item ${status === '성공' ? 'success' : 'fail'}`;
+      logItem.innerText = `[${timeStr}] [${eyeTag}] 풍선 주시 고정 - ${status}`;
       
-      let pMin = String(min).padStart(2, '0');
-      let pSec = String(sec).padStart(2, '0');
-      
-      document.getElementById('panel-time-txt').innerText = `${pMin}분 ${pSec}초`;
-      document.getElementById('panel-pop-txt').innerText = `${window.balloonPopCount} 개`;
-      
-      let hudStr = `⏳ ${min}m ${sec}s\n🎈 POP: ${window.balloonPopCount}`;
-      document.getElementById('hud-text-left').setAttribute('value', hudStr);
-      document.getElementById('hud-text-right').setAttribute('value', hudStr);
-    }
-
-    function startSingleVRTraining() {
-      window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      
-      eyeModeSetting = document.getElementById('eye-select').value;
-      runModeSetting = document.getElementById('run-mode-select').value;
-      
-      if (runModeSetting === "auto") {
-        totalDurationSet = parseInt(document.getElementById('auto-time-select').value);
-        autoChangeInterval = totalDurationSet / 6; 
-      } else {
-        totalDurationSet = parseInt(document.getElementById('manual-time-select').value);
-        manualDirectionSetting = document.getElementById('manual-dir-select').value;
-      }
-      
-      remainingSeconds = totalDurationSet;
-
-      if (eyeModeSetting === "rightOnly") activeTurn = "right";
-      else activeTurn = "left";
-
-      document.getElementById('settings-input-area').style.display = 'none';
-      document.getElementById('active-dashboard-area').style.display = 'block';
-      
-      redrawBackgroundGrid();
-      
-      window.isTrainingActive = true;
-      document.getElementById('magic-eye-board').setAttribute('visible', 'true');
-      renderRandomTargetsOnly();
-      
-      autoTimerCounter = 0;
-      autoDirectionStep = 0;
-      window.balloonPopCount = 0;
-      updateDataCounters();
-
-      if (elapsedInterval) clearInterval(elapsedInterval);
-      elapsedInterval = setInterval(() => {
-        if (!window.isTrainingActive) return;
-        
-        if (remainingSeconds > 0) {
-          remainingSeconds--;
-          
-          if (runModeSetting === "auto") {
-            autoTimerCounter++;
-            if (autoTimerCounter >= autoChangeInterval) {
-              autoTimerCounter = 0;
-              autoDirectionStep = (autoDirectionStep + 1) % 6; 
-            }
-          }
-        } else {
-          clearInterval(elapsedInterval);
-        }
-
-        updateDataCounters();
-      }, 1000);
-
-      if (sceneEl.hasLoaded) sceneEl.enterVR();
-      else sceneEl.addEventListener('loaded', () => sceneEl.enterVR());
-    }
-
-    function redrawBackgroundGrid() {
-      const bgCanvas = document.getElementById('bgCheckerCanvas');
-      const bgCtx = bgCanvas.getContext('2d');
-      const bSize = 512;
-      const bW = bSize / rowsCols;
-      const bH = bSize / rowsCols;
-      bgCtx.clearRect(0, 0, bSize, bSize);
-      for (let r = 0; r < rowsCols; r++) {
-        for (let c = 0; c < rowsCols; c++) {
-          bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
-          bgCtx.fillRect(c * bW, r * bH, bW, bH);
-        }
-      }
-      const sky = document.getElementById('rotating-bg');
-      if(sky && sky.components.material && sky.components.material.material && sky.components.material.material.map) {
-        sky.components.material.material.map.needsUpdate = true;
-      }
+      logContainer.insertBefore(logItem, logContainer.firstChild);
     }
 
     function renderRandomTargetsOnly() {
-      if (!window.isTrainingActive) return;
-      
+      if (!isTrainingActive) return;
+
+      const eyeMode = document.getElementById('eye-select').value;
+      if (eyeMode === "leftOnly") { activeTurn = "left"; } 
+      else if (eyeMode === "rightOnly") { activeTurn = "right"; }
+
+      const cameraEl = document.getElementById('mainCamera');
       let camPos = {x: 0, y: 1.6, z: 0};
-      let balloonZ = camPos.z - 45.0;
       
-      // [수정] 링이 반지름 1.6인 풍선 구체에 파묻히지 않고 표면 바깥 앞쪽에 완전히 노출되도록 Z축 오프셋을 최적화 (-44.8 -> -43.3)
-      let ringZ = camPos.z - 43.3; 
-      
-      let spreadFactor = 45.0 / 4.2; 
-      
-      let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.25 * spreadFactor);
-      let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 0.95 * spreadFactor);
+      // 카메라 3D 오브젝트 상태를 안전하게 가로채 계산에 반영합니다.
+      if (cameraEl && cameraEl.object3D) {
+        cameraEl.object3D.updateMatrixWorld();
+        camPos.x = cameraEl.object3D.position.x || 0;
+        camPos.y = cameraEl.object3D.position.y || 1.6;
+        camPos.z = cameraEl.object3D.position.z || 0;
+      }
+
+      let radiusRadius = 1.80;  
+      let zOffset = 16.0;         
+      let baseZ = camPos.z - zOffset; 
+      let spreadFactor = zOffset / 4.2;
+
+      let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.3 * spreadFactor);
+      let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 1.0 * spreadFactor);
+
       if (randY < camPos.y - (0.5 * spreadFactor)) randY = camPos.y - (0.5 * spreadFactor);
       if (randY > camPos.y + (0.7 * spreadFactor)) randY = camPos.y + (0.7 * spreadFactor);
-      
-      currentX = randX; currentY = randY; currentZ = balloonZ;
 
-      const hudL = document.getElementById('hud-left');
-      const hudR = document.getElementById('hud-right');
+      currentX = randX; currentY = randY; currentZ = baseZ;
+
       const cLeft = document.getElementById('left-eye-container');
       const cRight = document.getElementById('right-eye-container');
-      
       const bLeft = document.getElementById('balloon-left');
       const bRight = document.getElementById('balloon-right');
-      const rLeft = document.getElementById('gaze-ring-left');
-      const rRight = document.getElementById('gaze-ring-right');
+      const coneLeft = document.getElementById('cone-left');
+      const coneRight = document.getElementById('cone-right');
+      const secureTrigger = document.getElementById('gaze-collision-trigger');
 
-      if (eyeModeSetting === "leftOnly") {
-        activeTurn = "left";
-        hudL.setAttribute('visible', 'true'); hudR.setAttribute('visible', 'false');
-        cLeft.setAttribute('visible', 'true'); cRight.setAttribute('visible', 'false');
-      } else if (eyeModeSetting === "rightOnly") {
-        activeTurn = "right";
-        hudL.setAttribute('visible', 'false'); hudR.setAttribute('visible', 'true');
-        cLeft.setAttribute('visible', 'false'); cRight.setAttribute('visible', 'true');
-      } else {
-        if (activeTurn === "left") {
-          hudL.setAttribute('visible', 'true'); hudR.setAttribute('visible', 'false');
-          cLeft.setAttribute('visible', 'true'); cRight.setAttribute('visible', 'false');
-        } else {
-          hudL.setAttribute('visible', 'false'); hudR.setAttribute('visible', 'true');
-          cLeft.setAttribute('visible', 'false'); cRight.setAttribute('visible', 'true');
+      const ringLeft = document.getElementById('gaze-ring-left');
+      const ringRight = document.getElementById('gaze-ring-right');
+      const raycasterEl = document.getElementById('centerFixationRay');
+
+      let eyeDisplayMode = (eyeMode === "alternating") ? "OU" : (eyeMode === "leftOnly" ? "L" : "R");
+
+      if (activeTurn === "left") {
+        document.getElementById('active-eye-txt').innerText = `왼쪽눈 활성 (${eyeDisplayMode})`;
+        document.getElementById('active-eye-txt').style.color = "#ff2a2a";
+
+        if(cLeft) cLeft.setAttribute('visible', 'true'); 
+        if(cRight) cRight.setAttribute('visible', 'false');
+        if(ringLeft) ringLeft.setAttribute('visible', 'true'); 
+        if(ringRight) ringRight.setAttribute('visible', 'false');
+        if (raycasterEl) raycasterEl.setAttribute('position', '-0.03 0 0');
+
+        if(ringLeft) ringLeft.setAttribute('position', `-0.03 0 -1`);
+
+        if(bLeft) {
+          bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+          bLeft.setAttribute('radius', radiusRadius);
+        }
+        if(coneLeft) {
+          coneLeft.setAttribute('position', `0 ${-radiusRadius * 1.1} 0`);
+          coneLeft.setAttribute('radius-bottom', `${radiusRadius * 0.15}`);
+          coneLeft.setAttribute('height', `${radiusRadius * 0.25}`);
+        }
+      } 
+      else {
+        document.getElementById('active-eye-txt').innerText = `오른쪽눈 활성 (${eyeDisplayMode})`;
+        document.getElementById('active-eye-txt').style.color = "#10b981";
+
+        if(cLeft) cLeft.setAttribute('visible', 'false'); 
+        if(cRight) cRight.setAttribute('visible', 'true');
+        if(ringLeft) ringLeft.setAttribute('visible', 'false'); 
+        if(ringRight) ringRight.setAttribute('visible', 'true');
+        if (raycasterEl) raycasterEl.setAttribute('position', '0.03 0 0');
+
+        if(ringRight) ringRight.setAttribute('position', `0.03 0 -1`);
+
+        if(bRight) {
+          bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+          bRight.setAttribute('radius', radiusRadius);
+        }
+        if(coneRight) {
+          coneRight.setAttribute('position', `0 ${-radiusRadius * 1.1} 0`);
+          coneRight.setAttribute('radius-bottom', `${radiusRadius * 0.15}`);
+          coneRight.setAttribute('height', `${radiusRadius * 0.25}`);
         }
       }
 
-      let exactIpdShift = 0.033; 
+      if (secureTrigger) {
+        secureTrigger.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+        secureTrigger.setAttribute('geometry', `primitive: sphere; radius: 2.5`);
+        if (!isPopping && !secureTrigger.classList.contains('gaze-secure-trigger')) {
+          secureTrigger.classList.add('gaze-secure-trigger');
+        }
+      }
       
-      bLeft.setAttribute('position', `${randX - exactIpdShift} ${randY} ${balloonZ}`);
-      rLeft.setAttribute('position', `${randX - exactIpdShift} ${randY} ${ringZ}`);
-      
-      bRight.setAttribute('position', `${randX + exactIpdShift} ${randY} ${balloonZ}`);
-      rRight.setAttribute('position', `${randX + exactIpdShift} ${randY} ${ringZ}`);
+      // 레이캐스터 컴포넌트를 즉시 강제 리프레시하여 첫 실행 시 조준선을 유실하지 않게 조치합니다.
+      if (raycasterEl && raycasterEl.components.raycaster) {
+        raycasterEl.components.raycaster.refreshObjects();
+      }
     }
 
-    window.startGazeTimerInternal = function() {
-      if (window.isPopping || !window.isTrainingActive) return;
-      if (!gazeTimer) {
-        gazeTimer = setTimeout(() => {
-          window.isPopping = true;
-          gazeTimer = null;
-          popTargetSuccess();
-        }, 1000); 
-      }
-    };
+    function setupVRHardwareLayers() {
+      const sceneEl = document.querySelector('a-scene');
+      if(!sceneEl) return;
+      sceneEl.addEventListener('enter-vr', () => {
+        const camera = sceneEl.camera;
+        if (camera && camera.isArrayCamera) {
+          camera.cameras[0].layers.enable(1); camera.cameras[0].layers.disable(2);
+          camera.cameras[1].layers.enable(2); camera.cameras[1].layers.disable(1);
+        }
+      });
+    }
 
-    window.clearGazeTimerInternal = function() {
-      if (gazeTimer) {
-        clearTimeout(gazeTimer);
-        gazeTimer = null;
+    function checkTargetGazeIntersection() {
+      requestAnimationFrame(checkTargetGazeIntersection);
+      if (!isTrainingActive || isPopping) return; 
+
+      const raycasterEl = document.getElementById('centerFixationRay');
+      if (!raycasterEl) return;
+
+      let raycasterComponent = raycasterEl.components.raycaster;
+      
+      if (raycasterComponent && raycasterComponent.intersections && raycasterComponent.intersections.length > 0) {
+        if (!gazeTimer) {
+          gazeTimer = setTimeout(() => {
+            const secureTrigger = document.getElementById('gaze-collision-trigger');
+            if (secureTrigger) { secureTrigger.classList.remove('gaze-secure-trigger'); }
+            
+            isPopping = true; gazeTimer = null;
+            popTargetSuccess();
+          }, 1000); 
+        }
+      } else {
+        if (gazeTimer) {
+          clearTimeout(gazeTimer);
+          gazeTimer = null;
+          const eyeMode = document.getElementById('eye-select').value;
+          addHistoryLog("실패", activeTurn, eyeMode);
+        }
       }
-    };
+    }
 
     function popTargetSuccess() {
-      playPopSound();
-      window.balloonPopCount++; 
-      updateDataCounters(); 
-      triggerParticlesEmission(currentX, currentY, currentZ, 25);
+      playPopSound(); 
+      score += 1000;
+      document.getElementById('panel-pop-txt').innerText = `${score.toString().padStart(4, '0')} 점`;
+
+      const eyeMode = document.getElementById('eye-select').value;
+      addHistoryLog("성공", activeTurn, eyeMode);
+
+      triggerParticlesEmission(currentX, currentY, currentZ, 30); 
       
-      if (eyeModeSetting === "alternating") {
+      if (eyeMode === "alternating") {
         activeTurn = (activeTurn === "left") ? "right" : "left";
       }
-      
+
       document.getElementById('magic-eye-board').setAttribute('visible', 'false');
+
       setTimeout(() => {
-        if (!window.isTrainingActive) return;
-        window.isPopping = false;
-        renderRandomTargetsOnly();
-        document.getElementById('magic-eye-board').setAttribute('visible', 'true');
-      }, 400);
+        if (!isTrainingActive) return;
+        isPopping = false;
+        renderRandomTargetsOnly(); 
+        document.getElementById('magic-eye-board').setAttribute('visible', 'true'); 
+      }, 400); 
     }
 
-    window.animateBackgroundScrollInternal = function() {
-      if (!window.isTrainingActive) return;
-      
-      let currentDir = "right";
-      if (runModeSetting === "auto") {
-        const dirs = ["right", "left", "up", "down", "clockwise", "counterclockwise"];
-        currentDir = dirs[autoDirectionStep];
+    function animateBackgroundAndScroll() {
+      requestAnimationFrame(animateBackgroundAndScroll);
+      if (!isTrainingActive) return;
+
+      const runMode = document.getElementById('run-mode-select').value;
+      let activeBgDirection = "right";
+
+      if (runMode === "manual") {
+        activeBgDirection = document.getElementById('manual-dir-select').value;
       } else {
-        currentDir = manualDirectionSetting;
+        const steps = ["right", "left", "up", "down", "clockwise", "counterclockwise"];
+        activeBgDirection = steps[autoStep];
       }
 
-      switch(currentDir) {
-        case "right": rotY += (rotationSpeed * 0.1); break;
-        case "left": rotY -= (rotationSpeed * 0.1); break;
-        case "up": rotX -= (rotationSpeed * 0.1); break;
-        case "down": rotX += (rotationSpeed * 0.1); break;
-        case "clockwise": rotZ += (rotationSpeed * 0.1); break;
-        case "counterclockwise": rotZ -= (rotationSpeed * 0.1); break;
+      let directionKr = "";
+      switch(activeBgDirection) {
+        case "right": directionKr = "우측 스크롤 (➔)"; rotY += (rotationSpeed * 0.1); break;
+        case "left": directionKr = "좌측 스크롤 (⬅)"; rotY -= (rotationSpeed * 0.1); break;
+        case "up": directionKr = "상측 스크롤 (⬆)"; rotX -= (rotationSpeed * 0.1); break;
+        case "down": directionKr = "하측 스크롤 (⬇)"; rotX += (rotationSpeed * 0.1); break;
+        case "clockwise": directionKr = "시계방향 회전 (↻)"; rotZ += (rotationSpeed * 0.1); break;
+        case "counterclockwise": directionKr = "반시계방향 회전 (↺)"; rotZ -= (rotationSpeed * 0.1); break;
       }
       
+      document.getElementById('active-pattern-txt').innerText = directionKr;
+
       const sky = document.getElementById('rotating-bg');
-      if (sky) sky.setAttribute('rotation', `${rotX} ${rotY} ${rotZ}`);
-    };
+      if (sky) {
+        sky.setAttribute('rotation', `${rotX} ${rotY} ${rotZ}`);
+      }
+    }
+
+    function startElapsedClock() {
+      if (elapsedInterval) clearInterval(elapsedInterval);
+      totalSecondsElapsed = 0; internalAutoTime = 0; autoStep = 0;
+      
+      elapsedInterval = setInterval(() => {
+        if (!isTrainingActive) return;
+        totalSecondsElapsed++;
+        internalAutoTime++;
+        
+        let remaining = targetSeconds - totalSecondsElapsed;
+        let totalMin = Math.floor(remaining / 60);
+        let totalSec = remaining % 60;
+        document.getElementById('panel-time-txt').innerText = `${totalMin.toString().padStart(2, '0')}분 ${totalSec.toString().padStart(2, '0')}초`;
+        
+        const runMode = document.getElementById('run-mode-select').value;
+        if (runMode === "auto") {
+          const changePeriod = parseInt(document.getElementById('auto-interval-select').value);
+          if (internalAutoTime >= changePeriod) {
+            internalAutoTime = 0;
+            autoStep = (autoStep + 1) % 6; 
+          }
+        }
+
+        if (totalSecondsElapsed >= targetSeconds) { 
+          if(gazeTimer) { clearTimeout(gazeTimer); gazeTimer = null; }
+          clearInterval(elapsedInterval); 
+          playFanfareAndFinish(); 
+        }
+      }, 1000);
+    }
+
+    function playFanfareAndFinish() {
+      isTrainingActive = false;
+      document.getElementById('magic-eye-board').setAttribute('visible', 'false');
+      
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, index) => {
+        setTimeout(() => {
+          const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+          osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+          osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        }, index * 120);
+      });
+
+      setTimeout(() => {
+        const sceneEl = document.querySelector('a-scene');
+        if (sceneEl && sceneEl.is('vr-mode')) sceneEl.exitVR();
+        alert(`🎉 시기능 훈련 완료! 최종 점수: ${score}점`);
+        location.reload();
+      }, 1200);
+    }
 
     function playPopSound() {
-      if (!window.audioCtx) return;
-      try {
-        const osc1 = window.audioCtx.createOscillator();
-        const gainNode = window.audioCtx.createGain();
-        osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, window.audioCtx.currentTime);
-        osc1.frequency.exponentialRampToValueAtTime(880, window.audioCtx.currentTime + 0.1);
-        gainNode.gain.setValueAtTime(0.15, window.audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, window.audioCtx.currentTime + 0.12);
-        osc1.connect(gainNode); gainNode.connect(window.audioCtx.destination);
-        osc1.start(); osc1.stop(window.audioCtx.currentTime + 0.12);
-      } catch(e) {}
+      if (!audioCtx) return;
+      const osc1 = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+      osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, audioCtx.currentTime); osc1.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+      osc1.connect(gainNode); gainNode.connect(audioCtx.destination);
+      osc1.start(); osc1.stop(audioCtx.currentTime + 0.12);
     }
 
     function triggerParticlesEmission(x, y, z, count) {
       const pGroup = document.getElementById('particle-group');
+      if(!pGroup) return;
       for (let i = 0; i < count; i++) {
         const p = document.createElement('a-box');
-        p.setAttribute('width', '0.2').setAttribute('height', '0.2').setAttribute('depth', '0.2');
-        p.setAttribute('color', ['#ff0055', '#ffff00', '#00ffcc', '#38bdf8'][Math.floor(Math.random() * 4)]);
-        p.setAttribute('position', `${x} ${y} ${z}`);
-        const vx = (Math.random() - 0.5) * 10, vy = (Math.random() - 0.5) * 10 + 4, vz = (Math.random() - 0.5) * 10;
+        p.setAttribute('width', '0.12'); p.setAttribute('height', '0.12'); p.setAttribute('depth', '0.12');
+        const colors = ['#ff0055', '#ffff00', '#00ffcc', '#38bdf8'];
+        p.setAttribute('color', colors[Math.floor(Math.random() * colors.length)]); p.setAttribute('position', `${x} ${y} ${z}`);
+        const vx = (Math.random() - 0.5) * 6; const vy = (Math.random() - 0.5) * 6 + 2.5; const vz = (Math.random() - 0.5) * 6;
         pGroup.appendChild(p);
         let age = 0;
         const t = setInterval(() => {
           age += 16;
-          p.setAttribute('position', `${x + vx * (age/1000)} ${y + vy * (age/1000) - (0.5 * 9.8 * (age/1000)**2)} ${z + vz * (age/1000)}`);
+          let cx = x + vx * (age/1000); let cy = y + vy * (age/1000) - (0.5 * 9.8 * (age/1000)*(age/1000)); let cz = z + vz * (age/1000);
+          p.setAttribute('position', `${cx} ${cy} ${cz}`);
           if (age > 800) { clearInterval(t); if (p.parentNode) p.parentNode.removeChild(p); }
         }, 16);
       }
     }
 
-    sceneEl.addEventListener('enter-vr', () => {
-      const camera = sceneEl.camera;
-      if (camera && camera.isArrayCamera) {
-        camera.cameras[0].layers.enable(1); camera.cameras[0].layers.disable(2);
-        camera.cameras[1].layers.enable(2); camera.cameras[1].layers.disable(1);
+    function exitVRModeManually() {
+      isTrainingActive = false; isPopping = false;
+      if (gazeTimer) { clearTimeout(gazeTimer); gazeTimer = null; }
+      if (elapsedInterval) clearInterval(elapsedInterval);
+      document.getElementById('magic-eye-board').setAttribute('visible', 'false');
+      
+      document.getElementById('settings-input-area').style.display = 'block';
+      document.getElementById('active-dashboard-area').style.display = 'none';
+      
+      const sceneEl = document.querySelector('a-scene');
+      if (sceneEl && sceneEl.is('vr-mode')) sceneEl.exitVR();
+    }
+
+    function startFusionTraining() {
+      // 구동 전에 캔버스와 배경 격자 그리기가 누락되었는지 다시 한 번 강제로 확인 및 호출해 줍니다.
+      redrawBackgroundGrid();
+
+      isTrainingActive = true; isPopping = false;
+      
+      const runMode = document.getElementById('run-mode-select').value;
+      if(runMode === "auto") {
+        targetSeconds = 120; 
+      } else {
+        targetSeconds = parseInt(document.getElementById('manual-time-select').value);
       }
-    });
+      
+      // 오디오 컨텍스트가 정지 상태(suspended)일 경우 복구 프로세스를 강제 연동합니다.
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } else if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      
+      document.getElementById('settings-input-area').style.display = 'none';
+      document.getElementById('active-dashboard-area').style.display = 'block';
+      document.getElementById('history-log').innerHTML = ''; 
+      
+      const eyeMode = document.getElementById('eye-select').value;
+      if(eyeMode === "rightOnly") activeTurn = "right"; else activeTurn = "left";
+
+      document.getElementById('magic-eye-board').setAttribute('visible', 'true');
+      
+      // 첫 구동 시 씬과 카메라 좌표계가 안전하게 완비될 수 있도록 60ms 미세 딜레이를 준 후 렌더링 엔진을 촉발합니다.
+      setTimeout(() => {
+        renderRandomTargetsOnly(); 
+        startElapsedClock();
+      }, 60);
+      
+      const sceneEl = document.querySelector('a-scene');
+      if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
+    }
+
+    setupVRHardwareLayers();
+    animateBackgroundAndScroll();
+    requestAnimationFrame(checkTargetGazeIntersection);
   </script>
 </body>
 </html>
