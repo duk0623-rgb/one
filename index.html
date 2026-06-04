@@ -2,67 +2,30 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 훈련 시스템 - 블랙스크린 해결 버전</title>
+  <title>시기능 훈련 시스템 - 원상복귀</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; background-color: #000; }
-    /* 검은 화면 방지: 로딩이 완료되기 전 보여줄 텍스트 */
-    #loading-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-family: sans-serif; text-align: center; z-index: 1000; }
-  </style>
 </head>
 <body>
 
-  <div id="loading-ui">
-    <h2>시스템 대기 중...</h2>
-    <p>브라우저를 클릭하거나 헤드셋 조종기로 조작을 시작하세요.</p>
+  <div id="control-panel" style="position:absolute; top:20px; left:20px; z-index:9999; background:#000; color:#fff; padding:20px; border:1px solid #fff;">
+    <h3>훈련 설정 제어판</h3>
+    <button onclick="startTraining()" style="padding:15px; cursor:pointer;">훈련 시작</button>
   </div>
 
-  <a-scene background="color: #000000" vr-mode-ui="enabled: true">
-    <a-assets>
-      <audio id="pop-sound" src="https://actions.google.com/sounds/v1/ui/beep.ogg" preload="auto"></audio>
-    </a-assets>
-
-    <a-entity id="sound-entity" sound="src: #pop-sound; volume: 5;"></a-entity>
-
-    <a-entity camera look-controls position="0 1.6 0">
-        <a-cursor fuse="true" fuseTimeout="500"></a-cursor>
-    </a-entity>
-
-    <a-entity id="rear-score-board" position="0 1.6 3" rotation="0 180 0">
-      <a-plane width="2" height="1" color="#111" material="opacity: 0.8"></a-plane>
-      <a-text id="score-display" value="점수: 0" align="center" position="0 0 0.1" color="white"></a-text>
-    </a-entity>
-
-    <a-sphere id="target" position="0 1.6 -3" radius="0.5" color="#fff" visible="true"></a-sphere>
+  <a-scene>
+    <a-camera position="0 1.6 0"></a-camera>
+    <a-sky color="#000"></a-sky>
+    
+    <a-sphere id="target" position="0 1.6 -3" radius="0.5" color="red"></a-sphere>
   </a-scene>
 
   <script>
-    let isStarted = false;
-
-    // 화면이 켜지자마자 실행되는 감지기
-    window.addEventListener('focus', () => {
-      document.getElementById('loading-ui').style.display = 'none';
-      if (!isStarted) {
-        initTraining();
-      }
-    });
-
-    function initTraining() {
-      isStarted = true;
-      document.getElementById('target').setAttribute('color', 'red');
-      console.log("훈련 환경 로드 완료");
+    function startTraining() {
+      // 훈련 시작 시 컨트롤 패널 제거 및 훈련 모드 진입
+      document.getElementById('control-panel').style.display = 'none';
+      document.querySelector('a-scene').enterVR();
+      console.log("훈련 프로그램 초기 상태 복구 완료");
     }
-
-    // 풍선 클릭 로직
-    document.getElementById('target').addEventListener('click', () => {
-      let sound = document.getElementById('sound-entity');
-      sound.components.sound.playSound();
-      
-      // 위치 이동
-      let x = (Math.random()-0.5)*4;
-      let y = 1.2 + Math.random();
-      document.getElementById('target').setAttribute('position', `${x} ${y} -3`);
-    });
   </script>
 </body>
 </html>
