@@ -2,26 +2,21 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.0</title>
+  <title>VR 시기능 훈련 시스템</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
-    
-    /* 왼쪽 컨트롤 패널 */
     #control-panel {
       position: absolute; top: 15px; left: 15px; z-index: 99999;
       background: rgba(11, 15, 26, 0.95); color: white; padding: 20px;
       border-radius: 12px; border: 1px solid #3b82f6; width: 310px;
     }
-    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; }
-    .panel-group { margin-bottom: 10px; background: rgba(30, 41, 59, 0.5); padding: 8px; border-radius: 8px; }
-    label { display: block; margin-bottom: 5px; font-size: 12px; color: #cbd5e1; }
+    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6; }
+    .panel-group { margin-bottom: 12px; background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 8px; }
+    label { display: block; margin-bottom: 6px; font-size: 12px; color: #cbd5e1; }
     select, input { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; }
-    .btn { width: 100%; padding: 10px; background: #22c55e; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 6px; }
-    
-    #result-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100000; background: #0b101a; color: white; padding: 40px; border-radius: 15px; border: 3px solid #38bdf8; text-align: center; }
+    .btn { width: 100%; padding: 12px; background: #22c55e; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 6px; }
   </style>
-  
   <script>
     AFRAME.registerComponent('stereo-eye-lock', {
       schema: { eye: {type: 'string', default: 'both'} },
@@ -46,23 +41,16 @@
     <div class="center-title">한국시기능훈련센터 성서계명대점</div>
     <div class="panel-group">
       <label>⏱️ 훈련 시간</label>
-      <select id="training-time-select"><option value="600" selected>10분 (정밀)</option></select>
+      <select id="training-time-select"><option value="600" selected>10분</option></select>
     </div>
-    <button id="start-btn" class="btn" onclick="startFusionTraining()">▶️ 훈련 시작</button>
-  </div>
-
-  <div id="result-modal">
-    <h1>🎉 훈련 완료 🎉</h1>
-    <button class="btn" onclick="location.reload()">처음으로</button>
+    <button class="btn" onclick="startFusionTraining()">▶️ 훈련 시작</button>
   </div>
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: true">
-    <a-sky id="rotating-bg" radius="50" material="shader: flat; color: #111;"></a-sky>
-    
+    <a-sky color="#111" radius="50"></a-sky>
     <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
-    
     <a-entity id="magic-eye-board" visible="false">
-      <a-sphere id="balloon-left" position="0 1.6 -5" color="#ff2a2a" radius="0.5"></a-sphere>
+      <a-sphere position="0 1.6 -5" color="#ff2a2a" radius="0.5"></a-sphere>
     </a-entity>
   </a-scene>
 
@@ -70,11 +58,26 @@
     let isTrainingActive = false;
 
     function startFusionTraining() {
+      const sceneEl = document.querySelector('a-scene');
+      
+      // 씬이 로드된 상태라면 즉시 실행, 아니면 로드 완료 후 실행
+      if (sceneEl.hasLoaded) {
+        proceedStart();
+      } else {
+        sceneEl.addEventListener('loaded', proceedStart, { once: true });
+      }
+    }
+
+    function proceedStart() {
       isTrainingActive = true;
       document.getElementById('control-panel').style.display = 'none';
+      document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       
       const sceneEl = document.querySelector('a-scene');
-      sceneEl.enterVR(); // VR 모드 즉시 진입
+      // VR 모드 강제 진입
+      if (!sceneEl.is('vr-mode')) {
+        sceneEl.enterVR();
+      }
     }
   </script>
 </body>
