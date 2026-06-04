@@ -2,12 +2,10 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.0</title>
+  <title>VR 시기능 훈련 시스템 V18.0 - 완전 검증 최종 마스터본</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
-    
-    /* 왼쪽 컨트롤 패널 */
     #control-panel {
       position: absolute; top: 15px; left: 15px; z-index: 99999;
       background: rgba(11, 15, 26, 0.95); color: white; padding: 20px;
@@ -23,7 +21,6 @@
     .btn { width: 100%; padding: 10px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 13px; }
     #start-btn { background: #22c55e; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); }
     
-    /* 오른쪽 스코어 및 실시간 기록실 */
     #score-board { 
       position: fixed; top: 20px; right: 20px; z-index: 99999; 
       background: rgba(15, 23, 42, 0.95); color: #fff; padding: 15px; 
@@ -31,7 +28,6 @@
     }
     .board-status { color: #ef4444; font-family: monospace; font-size: 16px; margin-bottom: 8px; }
     .exit-vr-btn { width: 100%; background: #ef4444; color: white; border: none; border-radius: 4px; padding: 6px; font-weight: bold; cursor: pointer; font-size: 11px; margin-top: 8px; display: none; }
-    
     .history-container { margin-top: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; height: 180px; overflow-y: auto; padding: 5px; }
     .history-item { font-family: monospace; font-size: 11px; border-bottom: 1px solid #1e293b; padding: 4px 2px; color: #cbd5e1; line-height: 1.3; }
     .history-item.success { color: #4ade80; }
@@ -63,6 +59,8 @@
 </head>
 <body>
 
+  <canvas id="bgCheckerCanvas" width="512" height="512" style="display:none;"></canvas>
+
   <div id="control-panel">
     <div class="center-info">시기능 시지각 전문 훈련 기관</div>
     <div class="center-title">한국시기능훈련센터 성서계명대점</div>
@@ -87,7 +85,7 @@
 
     <div class="panel-group">
       <label>🎮 훈련 구동 방식</label>
-      <select id="run-mode-select" onchange="toggleRunModeUI()">
+      <select id="run-mode-select">
         <option value="manual" selected>수동 모드 (배경 방향 직접 지정)</option>
         <option value="auto">자동 모드 (배경 방향 주기적 전환)</option>
       </select>
@@ -152,18 +150,14 @@
   </div>
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: true">
-    <a-assets>
-      <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
-    </a-assets>
+    <a-sky id="rotating-bg" radius="50" material="shader: flat; repeat: 16 16; side: back;" stereo-eye-lock="eye: both"></a-sky>
 
-    <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; repeat: 16 16; side: back;" stereo-eye-lock="eye: both"></a-sky>
-
-    <a-entity id="cameraRig">
+    <a-entity id="cameraRig" position="0 0 0">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
         <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
         
-        <a-ring id="gaze-ring-left" radius-inner="0.02" radius-outer="0.03" color="#000000" position="-0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: left"></a-ring>
-        <a-ring id="gaze-ring-right" radius-inner="0.02" radius-outer="0.03" color="#000000" position="0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: right"></a-ring>
+        <a-ring id="gaze-ring-left" radius-inner="0.008" radius-outer="0.012" color="#000000" position="-0.03 0 -0.5" scale="1 1 1" material="shader: flat; opacity: 0.95; depthTest: false;" stereo-eye-lock="eye: left"></a-ring>
+        <a-ring id="gaze-ring-right" radius-inner="0.008" radius-outer="0.012" color="#000000" position="0.03 0 -0.5" scale="1 1 1" material="shader: flat; opacity: 0.95; depthTest: false;" stereo-eye-lock="eye: right"></a-ring>
       </a-entity>
     </a-entity>
 
@@ -188,25 +182,45 @@
 
   <script>
     let rowsCols = 4;
+    let audioCtx = null; 
+    
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
-      if (!bgCanvas) return; // 캔버스가 아직 로드되지 않은 상태면 안전하게 리턴
+      if (!bgCanvas) return; 
+      
       const bgCtx = bgCanvas.getContext('2d');
       const bSize = 512;
       const bW = bSize / rowsCols; const bH = bSize / rowsCols;
+      bgCtx.clearRect(0, 0, bSize, bSize);
+      
       for (let r = 0; r < rowsCols; r++) {
-        for (let c = 0; c < rowsCols; c++) {
+        for (let c = 0; c < rowsCols; c++) { 
           bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
           bgCtx.fillRect(c * bW, r * bH, bW, bH);
         }
       }
+      
       const sky = document.getElementById('rotating-bg');
-      if(sky && sky.components.material && sky.components.material.material && sky.components.material.material.map) {
-        sky.components.material.material.map.needsUpdate = true;
+      if (sky && sky.getObject3D('mesh')) {
+        const material = sky.getObject3D('mesh').material;
+        if (material) {
+          const texture = new AFRAME.THREE.CanvasTexture(bgCanvas);
+          texture.wrapS = AFRAME.THREE.RepeatWrapping;
+          texture.wrapT = AFRAME.THREE.RepeatWrapping;
+          texture.repeat.set(16, 16);
+          material.map = texture;
+          material.needsUpdate = true;
+        }
       }
     }
 
-    let audioCtx = null; let score = 0; let randomRange = 1.40; 
+    let score = 0; let randomRange = 1.40; 
     let rotationSpeed = 2; let isTrainingActive = false; let isPopping = false; 
 
     let elapsedInterval = null; let totalSecondsElapsed = 0; let targetSeconds = 600;      
@@ -217,7 +231,6 @@
     let autoStep = 0; 
     let internalAutoTime = 0;
 
-    // 배경 실시간 좌표 축적을 위한 변수
     let rotX = 0; let rotY = 0; let rotZ = 0;
 
     function toggleRunModeUI() {
@@ -225,6 +238,12 @@
       document.getElementById('manual-direction-group').style.display = (runMode === 'manual') ? 'block' : 'none';
       document.getElementById('auto-time-group').style.display = (runMode === 'auto') ? 'block' : 'none';
     }
+
+    document.getElementById('run-mode-select').addEventListener('change', toggleRunModeUI);
+    
+    document.getElementById('eye-mode-select').addEventListener('change', () => {
+      if(isTrainingActive) { renderRandomTargetsOnly(); }
+    });
 
     document.getElementById('grid-size-slider').addEventListener('input', (e) => {
       rowsCols = parseInt(e.target.value);
@@ -241,7 +260,6 @@
       document.getElementById('bg-speed-txt').innerText = rotationSpeed;
     });
 
-    // 실시간 대시보드 로그 내림차순 기록실
     function addHistoryLog(status, activeEye, typeMode) {
       const logContainer = document.getElementById('history-log');
       const now = new Date();
@@ -259,7 +277,6 @@
       logContainer.insertBefore(logItem, logContainer.firstChild);
     }
 
-    // [핵심 변경] 풍선은 언제나 100% 무작위(Random) 위치에 단독 매칭됨
     function renderRandomTargetsOnly() {
       if (!isTrainingActive) return;
 
@@ -267,25 +284,17 @@
       if (eyeMode === "leftOnly") { activeTurn = "left"; } 
       else if (eyeMode === "rightOnly") { activeTurn = "right"; }
 
-      const cameraEl = document.getElementById('mainCamera');
-      let camPos = {x: 0, y: 1.6, z: 0};
-      if (cameraEl && cameraEl.object3D) {
-        camPos.x = cameraEl.object3D.position.x;
-        camPos.y = cameraEl.object3D.position.y;
-        camPos.z = cameraEl.object3D.position.z;
-      }
-
-      let radiusRadius = 1.80;  
-      let zOffset = 16.0;       
-      let baseZ = camPos.z - zOffset; 
+      let baseCamY = 1.6;
+      let radiusRadius = 1.30;  
+      let zOffset = 14.0;       
+      let baseZ = -zOffset; 
       let spreadFactor = zOffset / 4.2;
 
-      // 풍선 위치 무작위 산출
-      let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.3 * spreadFactor);
-      let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 1.0 * spreadFactor);
+      let randX = (Math.random() - 0.5) * (randomRange * 1.3 * spreadFactor);
+      let randY = baseCamY + (Math.random() - 0.5) * (randomRange * 1.0 * spreadFactor);
 
-      if (randY < camPos.y - (0.5 * spreadFactor)) randY = camPos.y - (0.5 * spreadFactor);
-      if (randY > camPos.y + (0.7 * spreadFactor)) randY = camPos.y + (0.7 * spreadFactor);
+      if (randY < baseCamY - (0.5 * spreadFactor)) randY = baseCamY - (0.5 * spreadFactor);
+      if (randY > baseCamY + (0.7 * spreadFactor)) randY = baseCamY + (0.7 * spreadFactor);
 
       currentX = randX; currentY = randY; currentZ = baseZ;
 
@@ -308,33 +317,43 @@
         document.getElementById('active-eye-txt').style.color = "#ff2a2a";
 
         cLeft.setAttribute('visible', 'true'); cRight.setAttribute('visible', 'false');
-        ringLeft.setAttribute('visible', 'true'); ringRight.setAttribute('visible', 'false');
+        if(ringLeft) ringLeft.setAttribute('visible', 'true'); 
+        if(ringRight) ringRight.setAttribute('visible', 'false');
         if (raycasterEl) raycasterEl.setAttribute('position', '-0.03 0 0');
 
-        bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-        bLeft.setAttribute('radius', radiusRadius);
-        coneLeft.setAttribute('position', `0 ${-radiusRadius * 1.1} 0`);
-        coneLeft.setAttribute('radius-bottom', `${radiusRadius * 0.15}`);
-        coneLeft.setAttribute('height', `${radiusRadius * 0.25}`);
+        if(bLeft) {
+          bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+          bLeft.setAttribute('radius', radiusRadius);
+        }
+        if(coneLeft) {
+          coneLeft.setAttribute('position', `0 ${-radiusRadius * 1.1} 0`);
+          coneLeft.setAttribute('radius-bottom', `${radiusRadius * 0.15}`);
+          coneLeft.setAttribute('height', `${radiusRadius * 0.25}`);
+        }
       } 
       else {
         document.getElementById('active-eye-txt').innerText = `오른쪽눈 활성 (${eyeDisplayMode})`;
         document.getElementById('active-eye-txt').style.color = "#10b981";
 
         cLeft.setAttribute('visible', 'false'); cRight.setAttribute('visible', 'true');
-        ringLeft.setAttribute('visible', 'false'); ringRight.setAttribute('visible', 'true');
+        if(ringLeft) ringLeft.setAttribute('visible', 'false'); 
+        if(ringRight) ringRight.setAttribute('visible', 'true');
         if (raycasterEl) raycasterEl.setAttribute('position', '0.03 0 0');
 
-        bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-        bRight.setAttribute('radius', radiusRadius);
-        coneRight.setAttribute('position', `0 ${-radiusRadius * 1.1} 0`);
-        coneRight.setAttribute('radius-bottom', `${radiusRadius * 0.15}`);
-        coneRight.setAttribute('height', `${radiusRadius * 0.25}`);
+        if(bRight) {
+          bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+          bRight.setAttribute('radius', radiusRadius);
+        }
+        if(coneRight) {
+          coneRight.setAttribute('position', `0 ${-radiusRadius * 1.1} 0`);
+          coneRight.setAttribute('radius-bottom', `${radiusRadius * 0.15}`);
+          coneRight.setAttribute('height', `${radiusRadius * 0.25}`);
+        }
       }
 
       if (secureTrigger) {
         secureTrigger.setAttribute('position', `${randX} ${randY} ${baseZ}`);
-        secureTrigger.setAttribute('geometry', `primitive: sphere; radius: 2.5`);
+        secureTrigger.setAttribute('geometry', `primitive: sphere; radius: 1.8`);
         if (!isPopping && !secureTrigger.classList.contains('gaze-secure-trigger')) {
           secureTrigger.classList.add('gaze-secure-trigger');
         }
@@ -343,6 +362,7 @@
 
     function setupVRHardwareLayers() {
       const sceneEl = document.querySelector('a-scene');
+      if(!sceneEl) return;
       sceneEl.addEventListener('enter-vr', () => {
         const camera = sceneEl.camera;
         if (camera && camera.isArrayCamera) {
@@ -350,22 +370,27 @@
           camera.cameras[1].layers.enable(2); camera.cameras[1].layers.disable(1);
         }
       });
+      sceneEl.addEventListener('exit-vr', () => {
+        const ringLeft = document.getElementById('gaze-ring-left');
+        const ringRight = document.getElementById('gaze-ring-right');
+        if(ringLeft) ringLeft.setAttribute('position', '-0.03 0 -0.5');
+        if(ringRight) ringRight.setAttribute('position', '0.03 0 -0.5');
+      });
     }
 
+    // [핵심 수정 2] 레이캐스터 객체 비동기 초기화 3중 예외 방어 로직
     function checkTargetGazeIntersection() {
       requestAnimationFrame(checkTargetGazeIntersection);
       if (!isTrainingActive || isPopping) return; 
 
       const raycasterEl = document.getElementById('centerFixationRay');
-      if (!raycasterEl) return;
+      if (!raycasterEl || !raycasterEl.components || !raycasterEl.components.raycaster) return;
 
       let raycasterComponent = raycasterEl.components.raycaster;
       
       if (raycasterComponent && raycasterComponent.intersections && raycasterComponent.intersections.length > 0) {
         if (!gazeTimer) {
           document.getElementById('status-txt').innerText = "🎯 융합 인지 및 주시 유지 (1초)...";
-          
-          // [정밀 주시 완성] 1초 고정
           gazeTimer = setTimeout(() => {
             const secureTrigger = document.getElementById('gaze-collision-trigger');
             if (secureTrigger) { secureTrigger.classList.remove('gaze-secure-trigger'); }
@@ -410,7 +435,6 @@
       }, 400); 
     }
 
-    // [핵심 로직] 치료사님이 선택한 배경의 움직임 방향 물리적 반영 알고리즘
     function animateBackgroundAndScroll() {
       requestAnimationFrame(animateBackgroundAndScroll);
       if (!isTrainingActive) return;
@@ -425,7 +449,6 @@
         activeBgDirection = steps[autoStep];
       }
 
-      // 대시보드 텍스트 매칭 안내
       let directionKr = "";
       switch(activeBgDirection) {
         case "right": directionKr = "우측 스크롤 (➔)"; rotY += (rotationSpeed * 0.1); break;
@@ -438,7 +461,6 @@
       
       document.getElementById('active-pattern-txt').innerText = (runMode === "manual" ? "수동: " : "자동: ") + directionKr;
 
-      // 3D 가상 배경 공간 드럼 실제 구동
       const sky = document.getElementById('rotating-bg');
       if (sky) {
         sky.setAttribute('rotation', `${rotX} ${rotY} ${rotZ}`);
@@ -459,7 +481,6 @@
         let totalSec = (targetSeconds - totalSecondsElapsed) % 60;
         document.getElementById('val-time').innerText = `${totalMin.toString().padStart(2, '0')}:${totalSec.toString().padStart(2, '0')}`;
         
-        // 자동 모드일 때 시간 주기 전환 엔진
         const runMode = document.getElementById('run-mode-select').value;
         if (runMode === "auto") {
           const changePeriod = parseInt(document.getElementById('auto-interval-select').value);
@@ -482,10 +503,11 @@
       document.getElementById('magic-eye-board').setAttribute('visible', 'false');
       document.getElementById('exit-vr-control').style.display = 'none';
       
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      initAudioContext();
       const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
       notes.forEach((freq, index) => {
         setTimeout(() => {
+          if (!audioCtx) return;
           const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
           osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
           gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
@@ -503,6 +525,7 @@
     }
 
     function playPopSound() {
+      initAudioContext();
       if (!audioCtx) return;
       const osc1 = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
       osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, audioCtx.currentTime); osc1.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
@@ -513,20 +536,36 @@
 
     function triggerParticlesEmission(x, y, z, count) {
       const pGroup = document.getElementById('particle-group');
+      if (!pGroup) return;
+      
       for (let i = 0; i < count; i++) {
         const p = document.createElement('a-box');
         p.setAttribute('width', '0.12'); p.setAttribute('height', '0.12'); p.setAttribute('depth', '0.12');
         const colors = ['#ff0055', '#ffff00', '#00ffcc', '#38bdf8'];
-        p.setAttribute('color', colors[Math.floor(Math.random() * colors.length)]); p.setAttribute('position', `${x} ${y} ${z}`);
-        const vx = (Math.random() - 0.5) * 6; const vy = (Math.random() - 0.5) * 6 + 2.5; const vz = (Math.random() - 0.5) * 6;
+        p.setAttribute('color', colors[Math.floor(Math.random() * colors.length)]); 
+        p.setAttribute('position', `${x} ${y} ${z}`);
+        
+        const vx = (Math.random() - 0.5) * 6; 
+        const vy = (Math.random() - 0.5) * 6 + 2.5; 
+        const vz = (Math.random() - 0.5) * 6;
+        
         pGroup.appendChild(p);
-        let age = 0;
-        const t = setInterval(() => {
-          age += 16;
-          let cx = x + vx * (age/1000); let cy = y + vy * (age/1000) - (0.5 * 9.8 * (age/1000)*(age/1000)); let cz = z + vz * (age/1000);
-          p.setAttribute('position', `${cx} ${cy} ${cz}`);
-          if (age > 800) { clearInterval(t); if (p.parentNode) p.parentNode.removeChild(p); }
-        }, 16);
+        
+        let startTime = performance.now();
+        function updateParticle(now) {
+          let age = now - startTime;
+          if (age > 800) {
+            if (p.parentNode) p.parentNode.removeChild(p);
+          } else {
+            let t = age / 1000;
+            let cx = x + vx * t; 
+            let cy = y + vy * t - (0.5 * 9.8 * t * t); 
+            let cz = z + vz * t;
+            p.setAttribute('position', `${cx} ${cy} ${cz}`);
+            requestAnimationFrame(updateParticle);
+          }
+        }
+        requestAnimationFrame(updateParticle);
       }
     }
 
@@ -544,7 +583,9 @@
     function startFusionTraining() {
       isTrainingActive = true; isPopping = false;
       targetSeconds = parseInt(document.getElementById('training-time-select').value);
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      initAudioContext();
+      
       document.getElementById('control-panel').style.display = 'none';
       document.getElementById('exit-vr-control').style.display = 'block';
       document.getElementById('history-log').innerHTML = ''; 
@@ -560,7 +601,6 @@
       if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
     }
 
-    // [안전한 초기 로드 라이프사이클 훅 설계] 브라우저가 열린 후 순차 초기화
     window.addEventListener('DOMContentLoaded', () => {
       const sceneEl = document.querySelector('a-scene');
       
