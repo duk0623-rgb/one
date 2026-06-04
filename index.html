@@ -2,13 +2,29 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.6 (첫 진입 버그 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V16.7</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
     
-    /* 좌측 통합 설정 컨트롤 패널 */
-    #setup-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #070a12; color: #38bdf8; z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; box-sizing: border-box; }
+    /* [핵심 수정] UI 컨테이너를 브라우저 최상단에 절대 고정 */
+    #setup-container { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100vw; 
+      height: 100vh; 
+      background: #070a12; 
+      color: #38bdf8; 
+      z-index: 999999; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      padding: 10px; 
+      box-sizing: border-box; 
+    }
+    
     .setup-box { width: 100%; max-width: 440px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 16px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
     
     .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
@@ -26,15 +42,28 @@
     .ctrl-btn:active { background: #1d4ed8; }
     .ctrl-value { font-size: 13px; color: #38bdf8; font-weight: bold; text-align: center; flex: 1; }
     
-    /* 우측 대형 모니터 대시보드 전광판 패널 */
-    #active-dashboard-area { display: none; margin-top: 5px; }
-    .dashboard-panel { padding: 15px; background: #0f172a; border: 3px dashed #22c55e; border-radius: 10px; text-align: center; }
+    /* [핵심 수정] 실시간 대시보드 전광판을 우측 상단 레이어로 완전 강제 분리 */
+    #active-dashboard-area { 
+      display: none; 
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      width: 320px;
+      background: #0f172a; 
+      border: 3px dashed #22c55e; 
+      border-radius: 12px; 
+      padding: 15px;
+      box-sizing: border-box;
+      z-index: 9999999; /* VR 모드 진입 시에도 브라우저 최상단에 띄우기 위함 */
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    
     .dash-row { display: flex; flex-direction: column; gap: 10px; }
-    .dash-item { font-size: 14px; color: #cbd5e1; font-weight: bold; }
-    .dash-num { font-size: 28px; color: #eab308; font-weight: bold; display: block; margin-top: 4px; font-family: 'Courier New', monospace; }
+    .dash-item { font-size: 14px; color: #cbd5e1; font-weight: bold; text-align: center; }
+    .dash-num { font-size: 28px; color: #eab308; font-weight: bold; display: block; margin-top: 4px; font-family: 'Courier New', monospace; text-align: center; }
 
     /* 실시간 기록실 스타일 */
-    .history-container { margin-top: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; height: 130px; overflow-y: auto; padding: 5px; text-align: left; }
+    .history-container { margin-top: 10px; background: #070a12; border: 1px solid #475569; border-radius: 6px; height: 130px; overflow-y: auto; padding: 5px; text-align: left; }
     .history-item { font-family: monospace; font-size: 11px; border-bottom: 1px solid #1e293b; padding: 4px 2px; color: #cbd5e1; line-height: 1.3; }
     .history-item.success { color: #4ade80; }
     .history-item.fail { color: #f87171; }
@@ -42,7 +71,7 @@
     .start-btn { width: 100%; padding: 12px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 12px; font-size: 15px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
   </style>
   <script>
-    // [양안 격리용 레이어 락 컴포넌트]
+    // 양안 격리용 레이어 락 컴포넌트
     AFRAME.registerComponent('stereo-eye-lock', {
       schema: { eye: {type: 'string', default: 'both'} },
       init: function () {
@@ -59,7 +88,7 @@
       }
     });
 
-    // [첫 로딩 시 하드웨어 유실 방지용 엔진 강제 활성화 컴포넌트]
+    // 첫 로딩 시 렌더러 강제 깨우기 컴포넌트
     AFRAME.registerComponent('scene-initializer', {
       init: function () {
         this.el.addEventListener('loaded', () => {
@@ -78,108 +107,103 @@
 <body>
 
   <div id="setup-container">
-    <div class="setup-box">
+    <div class="setup-box" id="settings-input-area">
       <div class="center-info">시기능 시지각 전문 훈련 기관</div>
       <div class="center-title">한국시기능훈련센터 성서계명대점</div>
       
-      <div id="settings-input-area">
+      <div class="panel-group">
+        <label>🎮 구동 모드 선택</label>
+        <select id="run-mode-select" onchange="toggleRunModeUI(this.value)">
+          <option value="manual" selected>수동 모드 (방향 직접 지정)</option>
+          <option value="auto">자동 모드 (순환 방향 전환)</option>
+        </select>
+      </div>
+
+      <div id="manual-mode-options">
         <div class="panel-group">
-          <label>🎮 구동 모드 선택</label>
-          <select id="run-mode-select" onchange="toggleRunModeUI(this.value)">
-            <option value="manual" selected>수동 모드 (방향 직접 지정)</option>
-            <option value="auto">자동 모드 (순환 방향 전환)</option>
+          <label>🗺️ 배경 이동 방향 지정 (수동)</label>
+          <select id="manual-dir-select">
+            <option value="right" selected>우측 이동</option>
+            <option value="left">좌측 이동</option>
+            <option value="up">상측 이동</option>
+            <option value="down">하측 이동</option>
+            <option value="clockwise">시계방향 회전</option>
+            <option value="counterclockwise">반시계방향 회전</option>
           </select>
         </div>
-
-        <div id="manual-mode-options">
-          <div class="panel-group">
-            <label>🗺️ 배경 이동 방향 지정 (수동)</label>
-            <select id="manual-dir-select">
-              <option value="right" selected>우측 이동</option>
-              <option value="left">좌측 이동</option>
-              <option value="up">상측 이동</option>
-              <option value="down">하측 이동</option>
-              <option value="clockwise">시계방향 회전</option>
-              <option value="counterclockwise">반시계방향 회전</option>
-            </select>
-          </div>
-          <div class="panel-group">
-            <label>⏱️ 수동 모드 목표 훈련 시간</label>
-            <select id="manual-time-select">
-              <option value="60">1분 (01:00)</option>
-              <option value="300">5분 (05:00)</option>
-              <option value="600" selected>10분 (10:00)</option>
-            </select>
-          </div>
-        </div>
-
-        <div id="auto-mode-options" style="display: none;">
-          <div class="panel-group">
-            <label>🔄 자동 배경 전환 주기 설정</label>
-            <select id="auto-interval-select">
-              <option value="120" selected>2분 단위 자동 전환</option>
-              <option value="180">3분 단위 자동 전환</option>
-            </select>
-          </div>
-        </div>
-
         <div class="panel-group">
-          <label>👁️ 안구 선택 모드</label>
-          <select id="eye-select">
-            <option value="alternating" selected>교대 출현 (OU)</option>
-            <option value="leftOnly">왼쪽 눈 전용 (L-양안격리)</option>
-            <option value="rightOnly">오른쪽 눈 전용 (R-양안격리)</option>
+          <label>⏱️ 수동 모드 목표 훈련 시간</label>
+          <select id="manual-time-select">
+            <option value="60">1분 (01:00)</option>
+            <option value="300">5분 (05:00)</option>
+            <option value="600" selected>10분 (10:00)</option>
           </select>
         </div>
+      </div>
 
-        <div class="flex-row">
-          <div class="panel-group half">
-            <label>🏁 배경 격자 크기</label>
-            <div class="btn-controller">
-              <button class="ctrl-btn" onclick="changeGridVal(-1)">-</button>
-              <span class="ctrl-value" id="grid-val-txt">4</span>
-              <button class="ctrl-btn" onclick="changeGridVal(1)">+</button>
-            </div>
-          </div>
-          <div class="panel-group half">
-            <label>🔄 배경 스크롤 속도</label>
-            <div class="btn-controller">
-              <button class="ctrl-btn" onclick="changeSpeedVal(-1)">-</button>
-              <span class="ctrl-value" id="speed-val-txt">2</span>
-              <button class="ctrl-btn" onclick="changeSpeedVal(1)">+</button>
-            </div>
-          </div>
-        </div>
-
+      <div id="auto-mode-options" style="display: none;">
         <div class="panel-group">
-          <label>↔️ 풍선 출현 반경</label>
+          <label>🔄 자동 배경 전환 주기 설정</label>
+          <select id="auto-interval-select">
+            <option value="120" selected>2분 단위 자동 전환</option>
+            <option value="180">3분 단위 자동 전환</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel-group">
+        <label>👁️ 안구 선택 모드</label>
+        <select id="eye-select">
+          <option value="alternating" selected>교대 출현 (OU)</option>
+          <option value="leftOnly">왼쪽 눈 전용 (L-양안격리)</option>
+          <option value="rightOnly">오른쪽 눈 전용 (R-양안격리)</option>
+        </select>
+      </div>
+
+      <div class="flex-row">
+        <div class="panel-group half">
+          <label>🏁 배경 격자 크기</label>
           <div class="btn-controller">
-            <button class="ctrl-btn" onclick="changeRangeVal(-0.1)">-</button>
-            <span class="ctrl-value" id="range-val-txt">1.40</span>
-            <button class="ctrl-btn" onclick="changeRangeVal(0.1)">+</button>
+            <button class="ctrl-btn" onclick="changeGridVal(-1)">-</button>
+            <span class="ctrl-value" id="grid-val-txt">4</span>
+            <button class="ctrl-btn" onclick="changeGridVal(1)">+</button>
           </div>
         </div>
-        
-        <button class="start-btn" onclick="startFusionTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
-      </div>
-
-      <div id="active-dashboard-area">
-        <div class="dashboard-panel">
-          <div class="dash-row">
-            <div class="dash-item">⏳ 남은 훈련 시간<span class="dash-num" id="panel-time-txt">00분 00초</span></div>
-            <div class="dash-item">🎯 누적 훈련 점수<span class="dash-num" id="panel-pop-txt" style="color:#22c55e;">0000 점</span></div>
-            <div class="dash-item" style="font-size:12px; color:#cbd5e1; margin-top:2px;">
-              상태: <span id="active-eye-txt" style="font-weight:bold;">-</span> | 
-              자극: <span id="active-pattern-txt" style="font-weight:bold;">-</span>
-            </div>
+        <div class="panel-group half">
+          <label>🔄 배경 스크롤 속도</label>
+          <div class="btn-controller">
+            <button class="ctrl-btn" onclick="changeSpeedVal(-1)">-</button>
+            <span class="ctrl-value" id="speed-val-txt">2</span>
+            <button class="ctrl-btn" onclick="changeSpeedVal(1)">+</button>
           </div>
-          <div style="margin-top: 12px; font-size: 11px; font-weight: bold; color: #94a3b8; border-top: 1px solid #334155; padding-top: 6px; text-align: left;">📋 실시간 훈련 기록실</div>
-          <div class="history-container" id="history-log"></div>
         </div>
-        <button class="start-btn" style="background:#ef4444; box-shadow:0 4px 12px rgba(239,68,68,0.4);" onclick="exitVRModeManually();">🔴 훈련 중단 및 설정창 복원</button>
       </div>
 
+      <div class="panel-group">
+        <label>↔️ 풍선 출현 반경</label>
+        <div class="btn-controller">
+          <button class="ctrl-btn" onclick="changeRangeVal(-0.1)">-</button>
+          <span class="ctrl-value" id="range-val-txt">1.40</span>
+          <button class="ctrl-btn" onclick="changeRangeVal(0.1)">+</button>
+        </div>
+      </div>
+      
+      <button class="start-btn" onclick="startFusionTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
     </div>
+  </div>
+
+  <div id="active-dashboard-area">
+    <div class="dash-row">
+      <div class="dash-item">⏳ 남은 훈련 시간<span class="dash-num" id="panel-time-txt">00분 00초</span></div>
+      <div class="dash-item">🎯 누적 훈련 점수<span class="dash-num" id="panel-pop-txt" style="color:#22c55e;">0000 점</span></div>
+      <div class="dash-item" style="font-size:12px; color:#cbd5e1; margin-top:2px;">
+        상태: <span id="active-eye-txt" style="font-weight:bold;">-</span> | 
+        자극: <span id="active-pattern-txt" style="font-weight:bold;">-</span>
+      </div>
+    </div>
+    <div style="margin-top: 12px; font-size: 11px; font-weight: bold; color: #94a3b8; border-top: 1px solid #334155; padding-top: 6px; text-align: left;">📋 실시간 훈련 기록실</div>
+    <div class="history-container" id="history-log"></div>
+    <button class="start-btn" style="background:#ef4444; box-shadow:0 4px 12px rgba(239,68,68,0.4); margin-top: 15px;" onclick="exitVRModeManually();">🔴 훈련 중단 및 설정창 복원</button>
   </div>
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: true" scene-initializer>
@@ -236,34 +260,20 @@
         const material = sky.getObject3D('mesh').material;
         if(material && material.map) material.map.needsUpdate = true;
       }
-      if(sky && sky.components && sky.components.material && sky.components.material.material && sky.components.material.material.map) {
-        sky.components.material.material.map.needsUpdate = true;
-      }
     }
 
-    // [첫 로딩/첫 진입 버그 완벽 제어용 하이패스 밸브]
+    // 초기 상태 강제 정렬
     window.addEventListener('load', () => {
       document.getElementById('setup-container').style.display = 'flex';
+      document.getElementById('active-dashboard-area').style.display = 'none';
       redrawBackgroundGrid();
       
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl) {
-        sceneEl.style.display = 'block';
-        
-        // 렌더링 즉시 강제 갱신 명령 연쇄 투하 (브라우저 최초 홀딩 강제 해제)
         setTimeout(() => {
-          if(sceneEl.renderer) {
-            sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
-          }
-          redrawBackgroundGrid();
-          window.dispatchEvent(new Event('resize')); // 브라우저에 강제 리사이즈 신호를 주어 깨웁니다.
+          if(sceneEl.renderer) sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+          window.dispatchEvent(new Event('resize'));
         }, 100);
-
-        if(!sceneEl.hasLoaded) {
-          sceneEl.addEventListener('renderstart', () => {
-            setTimeout(() => { redrawBackgroundGrid(); window.dispatchEvent(new Event('resize')); }, 50);
-          });
-        }
       }
     });
 
@@ -379,7 +389,6 @@
         if(ringLeft) ringLeft.setAttribute('visible', 'true'); 
         if(ringRight) ringRight.setAttribute('visible', 'false');
         if (raycasterEl) raycasterEl.setAttribute('position', '-0.03 0 0');
-
         if(ringLeft) ringLeft.setAttribute('position', `-0.03 0 -1`);
 
         if(bLeft) {
@@ -401,7 +410,6 @@
         if(ringLeft) ringLeft.setAttribute('visible', 'false'); 
         if(ringRight) ringRight.setAttribute('visible', 'true');
         if (raycasterEl) raycasterEl.setAttribute('position', '0.03 0 0');
-
         if(ringRight) ringRight.setAttribute('position', `0.03 0 -1`);
 
         if(bRight) {
@@ -520,9 +528,7 @@
       document.getElementById('active-pattern-txt').innerText = directionKr;
 
       const sky = document.getElementById('rotating-bg');
-      if (sky) {
-        sky.setAttribute('rotation', `${rotX} ${rotY} ${rotZ}`);
-      }
+      if (sky) sky.setAttribute('rotation', `${rotX} ${rotY} ${rotZ}`);
     }
 
     function startElapsedClock() {
@@ -609,22 +615,23 @@
       }
     }
 
+    // [수정] 강제 복원 시 레이아웃 명확화
     function exitVRModeManually() {
       isTrainingActive = false; isPopping = false;
       if (gazeTimer) { clearTimeout(gazeTimer); gazeTimer = null; }
       if (elapsedInterval) clearInterval(elapsedInterval);
       document.getElementById('magic-eye-board').setAttribute('visible', 'false');
       
-      document.getElementById('settings-input-area').style.display = 'block';
+      document.getElementById('setup-container').style.display = 'flex';
       document.getElementById('active-dashboard-area').style.display = 'none';
       
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl && sceneEl.is('vr-mode')) sceneEl.exitVR();
     }
 
+    // [수정] 시작 시 셋업창을 완벽히 끄고 대시보드 강제 표출
     function startFusionTraining() {
       redrawBackgroundGrid();
-
       isTrainingActive = true; isPopping = false;
       
       const runMode = document.getElementById('run-mode-select').value;
@@ -640,7 +647,8 @@
         audioCtx.resume();
       }
       
-      document.getElementById('settings-input-area').style.display = 'none';
+      // 레이아웃 스위칭 확실하게 고정
+      document.getElementById('setup-container').style.display = 'none';
       document.getElementById('active-dashboard-area').style.display = 'block';
       document.getElementById('history-log').innerHTML = ''; 
       
