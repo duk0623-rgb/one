@@ -2,86 +2,81 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.0 - 최종 통합본</title>
+  <title>VR 시기능 훈련 시스템 V16.0 - 완벽 통합본</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
-    #control-panel { position: absolute; top: 15px; left: 15px; z-index: 99999; background: rgba(11, 15, 26, 0.95); color: white; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; width: 310px; max-height: 90vh; overflow-y: auto; }
-    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6; }
-    .btn { width: 100%; padding: 10px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; background: #22c55e; }
-    #score-board { position: fixed; top: 20px; right: 20px; z-index: 99999; background: rgba(15, 23, 42, 0.95); color: #fff; padding: 15px; border-radius: 10px; border: 2px solid #38bdf8; width: 280px; }
-    .history-container { margin-top: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; height: 180px; overflow-y: auto; padding: 5px; }
+    body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; user-select: none; }
+    #control-panel { position: absolute; top: 15px; left: 15px; z-index: 99999; background: rgba(11, 15, 26, 0.95); color: white; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; width: 310px; }
+    .btn { width: 100%; padding: 12px; background: #22c55e; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 6px; }
   </style>
 </head>
 <body>
 
   <div id="control-panel">
-    <div class="center-title">한국시기능훈련센터 성서계명대점</div>
-    <button id="start-btn" class="btn" onclick="startFusionTraining()">▶️ 훈련 시작</button>
+    <h3>한국시기능훈련센터 성서계명대점</h3>
+    <button class="btn" onclick="startTraining()">▶️ 훈련 시작</button>
   </div>
 
-  <div id="score-board">
-    <div class="board-status">남은시간: <span id="val-time">10:00</span></div>
-    <div id="status-txt">훈련을 시작해 주세요.</div>
-    <div class="history-container" id="history-log"></div>
-    <button id="exit-vr-control" class="exit-vr-btn" style="display:none;" onclick="exitVRModeManually()">🔴 훈련 중단</button>
-  </div>
-
-  <a-scene background="color: #000000" vr-mode-ui="enabled: true">
+  <a-scene id="scene" background="color: #000000">
     <a-assets>
       <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
     </a-assets>
+
     <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; side: back;"></a-sky>
-    
-    <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-      <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
+
+    <a-entity camera look-controls position="0 1.6 0">
+      <a-entity id="ray" raycaster="objects: .target; far: 20;" cursor="rayOrigin: entity" position="0 0 -1"></a-entity>
     </a-entity>
 
-    <a-entity id="magic-eye-board" visible="false">
-      <a-sphere id="balloon-left" class="gaze-secure-trigger" color="#ff2a2a" position="0 1.6 -5" radius="0.5"></a-sphere>
-    </a-entity>
+    <a-sphere id="balloon" class="target" color="#ff2a2a" position="0 1.6 -5" radius="0.5"></a-sphere>
   </a-scene>
 
   <script>
-    // 1. 초기 배경 생성 및 갱신 로직 (원본 코드에서 사용하시던 로직 유지)
-    function redrawBackgroundGrid() {
-      const bgCanvas = document.getElementById('bgCheckerCanvas');
-      const bgCtx = bgCanvas.getContext('2d');
-      bgCtx.fillStyle = '#000'; bgCtx.fillRect(0,0,512,512);
-      bgCtx.fillStyle = '#FFF';
-      for(let i=0; i<8; i++) for(let j=0; j<8; j++) if((i+j)%2===0) bgCtx.fillRect(i*64, j*64, 64, 64);
+    let rotY = 0;
+    
+    // 1. 배경 격자 그리기
+    function drawGrid() {
+      const canvas = document.getElementById('bgCheckerCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#FFF';
+      for(let i=0; i<8; i++) for(let j=0; j<8; j++) if((i+j)%2===0) ctx.fillRect(i*64, j*64, 64, 64);
       
       const sky = document.getElementById('rotating-bg');
-      if(sky && sky.components.material) {
-        sky.components.material.material.map.needsUpdate = true;
-      }
+      if(sky.components.material) sky.components.material.material.map.needsUpdate = true;
     }
 
-    // 2. 훈련 시작 로직 (브라우저 정책 해결)
-    function startFusionTraining() {
-      // 오디오 컨텍스트 강제 활성화
-      if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (window.audioCtx.state === 'suspended') window.audioCtx.resume();
-
-      document.getElementById('control-panel').style.display = 'none';
-      document.getElementById('exit-vr-control').style.display = 'block';
-      document.getElementById('magic-eye-board').setAttribute('visible', 'true');
-
-      const sceneEl = document.querySelector('a-scene');
+    // 2. 훈련 시작 및 VR 진입
+    function startTraining() {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtx.resume();
       
-      // VR 진입 시점 보장
-      sceneEl.enterVR();
-
-      // 배경이 사라지는 현상 해결: 진입 후 0.5초 뒤 캔버스 강제 재갱신
-      sceneEl.addEventListener('enter-vr', () => {
-        setTimeout(redrawBackgroundGrid, 500);
-      }, { once: true });
+      document.getElementById('control-panel').style.display = 'none';
+      const scene = document.querySelector('a-scene');
+      scene.enterVR();
     }
 
-    // 초기 실행
-    window.onload = redrawBackgroundGrid;
-    
-    // [참고] 나머지 로직(animateBackgroundAndScroll 등)은 이 아래에 그대로 추가하시면 됩니다.
+    // 3. 루프 실행 (A-Frame의 렌더링 루프에 안전하게 연결)
+    function updateLoop() {
+      rotY += 0.2;
+      const sky = document.getElementById('rotating-bg');
+      if(sky) sky.setAttribute('rotation', `0 ${rotY} 0`);
+      
+      // 풍선 주시 확인
+      const ray = document.getElementById('ray');
+      if(ray && ray.components.raycaster.intersections.length > 0) {
+        // 풍선 터짐 로직
+        const balloon = document.getElementById('balloon');
+        balloon.setAttribute('position', `${(Math.random()-0.5)*4} ${1.6+(Math.random()-0.5)} -5`);
+      }
+      requestAnimationFrame(updateLoop);
+    }
+
+    // 초기화
+    window.onload = () => {
+      drawGrid();
+      updateLoop();
+    };
   </script>
 </body>
 </html>
