@@ -2,101 +2,71 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 - 최종 완전본</title>
+  <title>VR 시기능 훈련 시스템 - 브라우저 전환 대응</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; }
-    /* 정면 컨트롤 보드 */
-    #control-panel { position: absolute; top: 20px; left: 20px; z-index: 99999; background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; width: 300px; border: 1px solid #3b82f6; }
-    .btn { width: 100%; padding: 15px; background: #22c55e; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
-    /* 결과창 */
-    #result-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100005; background: #111; color: white; padding: 40px; border-radius: 15px; border: 2px solid #38bdf8; text-align: center; }
-  </style>
 </head>
 <body>
 
-  <!-- 1. 정면 컨트롤 보드 -->
-  <div id="control-panel">
-    <h3 style="color:#38bdf8; margin-top:0;">한국시기능훈련센터</h3>
-    <label>훈련 시간(초)</label><br>
-    <input type="number" id="time-input" value="600" style="width:90%; margin-bottom:10px;"><br>
-    <button class="btn" onclick="startTraining()">▶ 훈련 시작</button>
-  </div>
-
-  <div id="result-modal">
-    <h1>훈련 종료</h1>
-    <div id="final-score" style="font-size:30px; margin:20px;">0</div>
-    <button onclick="location.reload()" style="padding:10px;">처음으로</button>
-  </div>
-
-  <a-scene background="color: #000000" vr-mode-ui="enabled: false">
+  <a-scene background="color: #000000" vr-mode-ui="enabled: true">
     <a-assets>
-      <audio id="pop-sound" src="https://cdn.glitch.global/c6b45398-3330-4e35-90d2-882194363578/pop.mp3"></audio>
+      <audio id="pop-sound" src="https://actions.google.com/sounds/v1/ui/beep.ogg" preload="auto"></audio>
     </a-assets>
 
-    <a-entity id="vrPopSoundEntity" sound="src: #pop-sound; volume: 2;"></a-entity>
+    <a-entity id="sound-entity" sound="src: #pop-sound; volume: 5;"></a-entity>
 
-    <!-- 카메라 -->
-    <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-      <a-entity id="cursor" cursor="fuse: true; fuseTimeout: 1000" position="0 0 -1" geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03" material="color: white; shader: flat"></a-entity>
+    <a-entity camera look-controls position="0 1.6 0">
+        <a-cursor fuse="true" fuseTimeout="500"></a-cursor>
     </a-entity>
 
-    <!-- 2. 등 뒤 스코어보드 (rotation 0 180 0) -->
-    <a-entity id="rear-score-board" position="0 1.7 4" rotation="0 180 0">
+    <a-entity id="rear-score-board" position="0 1.6 3" rotation="0 180 0">
       <a-plane width="2" height="1" color="#111" material="opacity: 0.8"></a-plane>
-      <a-text id="score-text" value="준비 완료" position="0 0 0.01" align="center" width="3"></a-text>
+      <a-text id="score-display" value="점수: 0" align="center" position="0 0 0.1" color="white"></a-text>
     </a-entity>
 
-    <!-- 3. 훈련 타겟 -->
-    <a-entity id="target" class="clickable" geometry="primitive: sphere; radius: 0.5" material="color: red" position="0 1.6 -3" visible="false"></a-entity>
+    <a-sphere id="target" position="0 1.6 -3" radius="0.5" color="red" visible="false"></a-sphere>
+    
+    <a-sky id="bg" color="#222"></a-sky>
   </a-scene>
 
   <script>
-    let score = 0, isRunning = false;
-    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let score = 0;
+    let isTrainingRunning = false;
 
-    function playSound() {
-      // 1순위: A-Frame 내장 사운드
-      const el = document.getElementById('vrPopSoundEntity');
-      if(el.components.sound) el.components.sound.playSound();
-      // 2순위: 즉각 반응 백업 사운드
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.frequency.value = 800; osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    }
-
-    function startTraining() {
-      isRunning = true;
-      document.getElementById('control-panel').style.display = 'none';
-      document.getElementById('target').setAttribute('visible', 'true');
-      document.querySelector('a-scene').enterVR();
-      
-      // 타이머 시작
-      let time = document.getElementById('time-input').value;
-      setInterval(() => {
-        if(!isRunning) return;
-        time--;
-        document.getElementById('score-text').setAttribute('value', `남은 시간: ${time}초\n점수: ${score}`);
-        if(time <= 0) finish();
-      }, 1000);
-    }
-
-    // 터치 로직
-    document.getElementById('target').addEventListener('click', () => {
-      if(!isRunning) return;
-      score += 100;
-      playSound();
-      // 위치 무작위 이동
-      let x = (Math.random()-0.5)*4, y = 1+Math.random()*2;
-      document.getElementById('target').setAttribute('position', `${x} ${y} -3`);
+    // 브라우저 포커스(전환) 시 훈련 시작/활성화 로직
+    window.addEventListener('focus', () => {
+      if (!isTrainingRunning) {
+        console.log("브라우저 전환 감지: 훈련 활성화");
+        isTrainingRunning = true;
+        document.getElementById('target').setAttribute('visible', 'true');
+        // 여기서 배경 애니메이션 시작 코드 추가
+        startAnimation();
+      }
     });
 
-    function finish() {
-      isRunning = false;
-      document.getElementById('result-modal').style.display = 'block';
-      document.getElementById('final-score').innerText = score + "점";
+    function startAnimation() {
+      // 배경 움직임 로직 예시
+      let bg = document.getElementById('bg');
+      setInterval(() => {
+        if(isTrainingRunning) {
+          // 배경이 움직이는 로직
+          bg.setAttribute('rotation', `0 ${Date.now()/50} 0`);
+        }
+      }, 100);
     }
+
+    // 풍선 터뜨리기
+    document.getElementById('target').addEventListener('click', () => {
+      score += 100;
+      document.getElementById('score-display').setAttribute('value', '점수: ' + score);
+      
+      // 사운드 재생 (강제)
+      let sound = document.getElementById('sound-entity');
+      sound.components.sound.stopSound();
+      sound.components.sound.playSound();
+      
+      // 위치 이동
+      document.getElementById('target').setAttribute('position', (Math.random()-0.5)*4 + " 1.6 -3");
+    });
   </script>
 </body>
 </html>
