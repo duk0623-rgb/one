@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.7 (황금 비례 및 시선 커서 완전 동기화판)</title>
+  <title>VR 시기능 훈련 시스템 V20.3 (48.5m 링 내부 판정 완벽 매칭판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -11,7 +11,7 @@
     
     .setup-box { width: 100%; max-width: 440px; background: #0b0f1a; border: 2px solid #3b82f6; border-radius: 12px; padding: 16px; box-sizing: border-box; box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
     .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
-    .center-title { font-size: 15px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #3b82f6; }
+    .center-title { font-size: 15px; font-weight: bold; color: #38b放弃8; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #3b82f6; }
     
     .panel-group { margin-bottom: 10px; }
     .panel-group.half { flex: 1; margin-bottom: 0; }
@@ -48,22 +48,9 @@
         }
       }
     });
-
-    // 시선 커서 진입 감지 정품 컴포넌트
-    AFRAME.registerComponent('gaze-target-action', {
-      init: function () {
-        this.el.addEventListener('mouseenter', () => {
-          if (!window.isTrainingActive || window.isPopping) return;
-          window.startGazeTimerInternal();
-        });
-        this.el.addEventListener('mouseleave', () => {
-          window.clearGazeTimerInternal();
-        });
-      }
-    });
-
     AFRAME.registerComponent('vr-loop-manager', {
       tick: function (time, timeDelta) {
+        if (typeof window.checkTargetGazeVectorMathInternal === 'function') window.checkTargetGazeVectorMathInternal();
         if (typeof window.animateBackgroundScrollInternal === 'function') window.animateBackgroundScrollInternal();
       }
     });
@@ -178,9 +165,6 @@
     
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-        
-        <a-entity cursor="fuse: false;" raycaster="objects: .balloon-target; far: 60; interval: 50;" position="0 0 -1"></a-entity>
-        
         <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
           <a-text id="hud-text-left" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
         </a-entity>
@@ -192,27 +176,23 @@
 
     <a-entity id="magic-eye-board" visible="false">
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
-        <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a">
-          <a-cone id="cone-left" color="#cc1111" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
-        </a-sphere>
-        <a-ring id="gaze-ring-left" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <a-sphere id="balloon-left" color="#ff2a2a"><a-cone id="cone-left" color="#cc1111"></a-cone></a-sphere>
+        <a-ring id="gaze-ring-left" radius-inner="1.5" radius-outer="2.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
-        <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981">
-          <a-cone id="cone-right" color="#047857" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
-        </a-sphere>
-        <a-ring id="gaze-ring-right" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <a-sphere id="balloon-right" color="#10b981"><a-cone id="cone-right" color="#047857"></a-cone></a-sphere>
+        <a-ring id="gaze-ring-right" radius-inner="1.5" radius-outer="2.2" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
     </a-entity>
     <a-entity id="particle-group"></a-entity>
   </a-scene>
 
   <script>
-    window.audioCtx = null;
-    window.balloonPopCount = 0; 
-    window.isTrainingActive = false;
-    window.isPopping = false;
+    let audioCtx = null;
+    let balloonPopCount = 0; 
+    let isTrainingActive = false;
+    let isPopping = false;
     let elapsedInterval = null;
     
     let remainingSeconds = 180; 
@@ -242,7 +222,7 @@
       if(rowsCols < 1) rowsCols = 1;
       if(rowsCols > 12) rowsCols = 12;
       document.getElementById('grid-val-txt').innerText = rowsCols;
-      if(window.isTrainingActive) redrawBackgroundGrid();
+      if(isTrainingActive) redrawBackgroundGrid();
     }
 
     function changeRangeVal(amt) {
@@ -274,7 +254,7 @@
         document.getElementById('panel-time-txt').innerText = "훈련 완료!";
         document.getElementById('panel-time-txt').style.color = "#22c55e";
         
-        let completionStr = `🎉 DONE!\n🎈 POP: ${window.balloonPopCount}`;
+        let completionStr = `🎉 DONE!\n🎈 POP: ${balloonPopCount}`;
         document.getElementById('hud-text-left').setAttribute('value', completionStr);
         document.getElementById('hud-text-right').setAttribute('value', completionStr);
         return;
@@ -287,15 +267,15 @@
       let pSec = String(sec).padStart(2, '0');
       
       document.getElementById('panel-time-txt').innerText = `${pMin}분 ${pSec}초`;
-      document.getElementById('panel-pop-txt').innerText = `${window.balloonPopCount} 개`;
+      document.getElementById('panel-pop-txt').innerText = `${balloonPopCount} 개`;
       
-      let hudStr = `⏳ ${min}m ${sec}s\n🎈 POP: ${window.balloonPopCount}`;
+      let hudStr = `⏳ ${min}m ${sec}s\n🎈 POP: ${balloonPopCount}`;
       document.getElementById('hud-text-left').setAttribute('value', hudStr);
       document.getElementById('hud-text-right').setAttribute('value', hudStr);
     }
 
     function startSingleVRTraining() {
-      window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       
       eyeModeSetting = document.getElementById('eye-select').value;
       runModeSetting = document.getElementById('run-mode-select').value;
@@ -318,18 +298,18 @@
       
       redrawBackgroundGrid();
       
-      window.isTrainingActive = true;
+      isTrainingActive = true;
       document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       renderRandomTargetsOnly();
       
       autoTimerCounter = 0;
       autoDirectionStep = 0;
-      window.balloonPopCount = 0;
+      balloonPopCount = 0;
       updateDataCounters();
 
       if (elapsedInterval) clearInterval(elapsedInterval);
       elapsedInterval = setInterval(() => {
-        if (!window.isTrainingActive) return;
+        if (!isTrainingActive) return;
         
         if (remainingSeconds > 0) {
           remainingSeconds--;
@@ -372,7 +352,7 @@
     }
 
     function renderRandomTargetsOnly() {
-      if (!window.isTrainingActive) return;
+      if (!isTrainingActive) return;
       
       let camPos = {x: 0, y: 1.6, z: 0};
       let zOffset = 48.5; 
@@ -415,31 +395,45 @@
         }
       }
 
-      // 황금 비율 반지름 1.6 정치
       bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
       bLeft.setAttribute('radius', '1.6'); 
       bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
       bRight.setAttribute('radius', '1.6');
 
-      // 미니 링 정중앙 배치 복구
       let ipdShift = 0.485; 
       rLeft.setAttribute('position', `${randX - ipdShift} ${randY} ${baseZ + 0.05}`);
       rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.05}`);
     }
 
-    window.startGazeTimerInternal = function() {
-      if (window.isPopping || !window.isTrainingActive) return;
-      if (!gazeTimer) {
-        gazeTimer = setTimeout(() => {
-          window.isPopping = true;
-          gazeTimer = null;
-          popTargetSuccess();
-        }, 1000); 
-      }
-    };
-
-    window.clearGazeTimerInternal = function() {
-      if (gazeTimer) {
+    // ★ [완전 해결] 판정 허용 점수를 0.28에서 0.65로 대폭 늘려, 링 내부에 시선이 들어오면 무조건 트리거 작동하게 매칭
+    window.checkTargetGazeVectorMathInternal = function() {
+      if (!isTrainingActive || isPopping) return;
+      
+      const cameraEl = document.getElementById('mainCamera');
+      if (!cameraEl) return;
+      
+      const cameraObj = cameraEl.getObject3D('camera');
+      if (!cameraObj) return;
+      
+      const vGaze = new THREE.Vector3(0, 0, -1);
+      vGaze.applyQuaternion(cameraEl.object3D.quaternion); 
+      vGaze.normalize();
+      
+      const vTarget = new THREE.Vector3(currentX, currentY, currentZ);
+      vTarget.normalize();
+      
+      const matchScore = vGaze.distanceTo(vTarget);
+      
+      // 0.65 마진은 검은 링 안쪽 영역 전체를 완벽히 포괄하는 수학적 수치입니다.
+      if (matchScore < 0.65) {
+        if (!gazeTimer) {
+          gazeTimer = setTimeout(() => {
+            isPopping = true;
+            gazeTimer = null;
+            popTargetSuccess();
+          }, 1000); 
+        }
+      } else if (gazeTimer) {
         clearTimeout(gazeTimer);
         gazeTimer = null;
       }
@@ -447,7 +441,7 @@
 
     function popTargetSuccess() {
       playPopSound();
-      window.balloonPopCount++; 
+      balloonPopCount++; 
       updateDataCounters(); 
       triggerParticlesEmission(currentX, currentY, currentZ, 25);
       
@@ -457,15 +451,15 @@
       
       document.getElementById('magic-eye-board').setAttribute('visible', 'false');
       setTimeout(() => {
-        if (!window.isTrainingActive) return;
-        window.isPopping = false;
+        if (!isTrainingActive) return;
+        isPopping = false;
         renderRandomTargetsOnly();
         document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       }, 400);
     }
 
     window.animateBackgroundScrollInternal = function() {
-      if (!window.isTrainingActive) return;
+      if (!isTrainingActive) return;
       
       let currentDir = "right";
       if (runModeSetting === "auto") {
@@ -489,16 +483,16 @@
     };
 
     function playPopSound() {
-      if (!window.audioCtx) return;
+      if (!audioCtx) return;
       try {
-        const osc1 = window.audioCtx.createOscillator();
-        const gainNode = window.audioCtx.createGain();
-        osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, window.audioCtx.currentTime);
-        osc1.frequency.exponentialRampToValueAtTime(880, window.audioCtx.currentTime + 0.1);
-        gainNode.gain.setValueAtTime(0.15, window.audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, window.audioCtx.currentTime + 0.12);
-        osc1.connect(gainNode); gainNode.connect(window.audioCtx.destination);
-        osc1.start(); osc1.stop(window.audioCtx.currentTime + 0.12);
+        const osc1 = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc1.connect(gainNode); gainNode.connect(audioCtx.destination);
+        osc1.start(); osc1.stop(audioCtx.currentTime + 0.12);
       } catch(e) {}
     }
 
