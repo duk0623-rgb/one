@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.5 (첫 로딩 버그 방어 + 링 가이드 복원판)</title>
+  <title>VR 시기능 훈련 시스템 V16.6 (첫 진입 버그 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -59,7 +59,7 @@
       }
     });
 
-    // [첫 로딩 시 하드웨어 유실 방지용 엔진 강제 활성화 컴포넌트] - ★ 절대 보존 ★
+    // [첫 로딩 시 하드웨어 유실 방지용 엔진 강제 활성화 컴포넌트]
     AFRAME.registerComponent('scene-initializer', {
       init: function () {
         this.el.addEventListener('loaded', () => {
@@ -192,7 +192,6 @@
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
         <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
-        
         <a-ring id="gaze-ring-left" radius-inner="0.02" radius-outer="0.03" color="#000000" position="-0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: left"></a-ring>
         <a-ring id="gaze-ring-right" radius-inner="0.02" radius-outer="0.03" color="#000000" position="0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: right"></a-ring>
       </a-entity>
@@ -242,19 +241,27 @@
       }
     }
 
-    // [첫 로딩 해결 핵심 밸브] - ★ 절대 보존 (한 번만 열어도 정상 구동 유도) ★
+    // [첫 로딩/첫 진입 버그 완벽 제어용 하이패스 밸브]
     window.addEventListener('load', () => {
+      document.getElementById('setup-container').style.display = 'flex';
       redrawBackgroundGrid();
-      const sceneEl = document.querySelector('a-scene');
       
+      const sceneEl = document.querySelector('a-scene');
       if (sceneEl) {
         sceneEl.style.display = 'block';
-        if(sceneEl.hasLoaded) {
-          if(sceneEl.renderer) sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // 렌더링 즉시 강제 갱신 명령 연쇄 투하 (브라우저 최초 홀딩 강제 해제)
+        setTimeout(() => {
+          if(sceneEl.renderer) {
+            sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+          }
           redrawBackgroundGrid();
-        } else {
+          window.dispatchEvent(new Event('resize')); // 브라우저에 강제 리사이즈 신호를 주어 깨웁니다.
+        }, 100);
+
+        if(!sceneEl.hasLoaded) {
           sceneEl.addEventListener('renderstart', () => {
-            setTimeout(() => { redrawBackgroundGrid(); }, 50);
+            setTimeout(() => { redrawBackgroundGrid(); window.dispatchEvent(new Event('resize')); }, 50);
           });
         }
       }
