@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.9 (치료사님 지시 반영: 풍선 배경쪽 완전 이동판)</title>
+  <title>VR 시기능 훈련 시스템 V21.0 (풍선-링 일체화 및 주시각 정밀 정렬판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -190,17 +190,17 @@
 
     <a-entity id="magic-eye-board" visible="false">
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
-        <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a">
+        <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a" radius="1.6">
           <a-cone id="cone-left" color="#cc1111" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
+          <a-ring id="gaze-ring-left" radius-inner="0.3" radius-outer="0.6" color="#000000" position="0 0 0.05" material="shader: flat; opacity: 1.0; depthTest: false;" raycaster-ignore></a-ring>
         </a-sphere>
-        <a-ring id="gaze-ring-left" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
-        <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981">
+        <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981" radius="1.6">
           <a-cone id="cone-right" color="#047857" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
+          <a-ring id="gaze-ring-right" radius-inner="0.3" radius-outer="0.6" color="#000000" position="0 0 0.05" material="shader: flat; opacity: 1.0; depthTest: false;" raycaster-ignore></a-ring>
         </a-sphere>
-        <a-ring id="gaze-ring-right" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
     </a-entity>
     <a-entity id="particle-group"></a-entity>
@@ -217,7 +217,7 @@
     let totalDurationSet = 180;
 
     let activeTurn = "left"; 
-    let currentX = 0, currentY = 1.6, currentZ = -45.2; 
+    let currentX = 0, currentY = 1.6, currentZ = -45.0; 
     let gazeTimer = null;
     let rotX = 0, rotY = 0, rotZ = 0;
     
@@ -373,20 +373,17 @@
       if (!window.isTrainingActive) return;
       
       let camPos = {x: 0, y: 1.6, z: 0};
-      let ringZOffset = 45.0;  // 링은 피검자 쪽 가까이 (-45.0)
-      let ballZOffset = 45.2;  // 풍선은 배경 쪽으로 완전 밀기 (-45.2)
+      let zOffset = 45.0; // 훈련 표준 거리 안착
+      let baseZ = camPos.z - zOffset;
       
-      let baseRingZ = camPos.z - ringZOffset;
-      let baseBallZ = camPos.z - ballZOffset;
-      
-      let spreadFactor = ballZOffset / 4.2; 
+      let spreadFactor = zOffset / 4.2; 
       
       let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.25 * spreadFactor);
       let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 0.95 * spreadFactor);
       if (randY < camPos.y - (0.5 * spreadFactor)) randY = camPos.y - (0.5 * spreadFactor);
       if (randY > camPos.y + (0.7 * spreadFactor)) randY = camPos.y + (0.7 * spreadFactor);
       
-      currentX = randX; currentY = randY; currentZ = baseBallZ;
+      currentX = randX; currentY = randY; currentZ = baseZ;
 
       const hudL = document.getElementById('hud-left');
       const hudR = document.getElementById('hud-right');
@@ -395,8 +392,6 @@
       
       const bLeft = document.getElementById('balloon-left');
       const bRight = document.getElementById('balloon-right');
-      const rLeft = document.getElementById('gaze-ring-left');
-      const rRight = document.getElementById('gaze-ring-right');
 
       if (eyeModeSetting === "leftOnly") {
         activeTurn = "left";
@@ -416,16 +411,14 @@
         }
       }
 
-      // ★ 풍선을 배경 쪽(-45.2)으로 완전히 밀어서 배치
-      bLeft.setAttribute('position', `${randX} ${randY} ${baseBallZ}`);
-      bLeft.setAttribute('radius', '1.6'); 
-      bRight.setAttribute('position', `${randX} ${randY} ${baseBallZ}`);
-      bRight.setAttribute('radius', '1.6');
-
-      // ★ 링은 피검자 쪽(-45.0)으로 가깝게 배치하여 풍선이 링을 덮어쓰지 못하게 격리
-      let ipdShiftRing = 0.45; 
-      rLeft.setAttribute('position', `${randX - ipdShiftRing} ${randY} ${baseRingZ}`);
-      rRight.setAttribute('position', `${randX + ipdShiftRing} ${randY} ${baseRingZ}`);
+      // ★[핵심 정렬] 거리에 최적화된 양안 주시 편차(IPD Shift) 값 보정 적용하여 눈앞 정면 일치
+      let exactIpdShift = 0.54; 
+      
+      // 왼쪽 눈 전용 타겟 좌표 세팅
+      bLeft.setAttribute('position', `${randX - exactIpdShift} ${randY} ${baseZ}`);
+      
+      // 오른쪽 눈 전용 타겟 좌표 세팅
+      bRight.setAttribute('position', `${randX + exactIpdShift} ${randY} ${baseZ}`);
     }
 
     window.startGazeTimerInternal = function() {
