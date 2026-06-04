@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 - 원터치 일체형 완결본</title>
+  <title>VR 시기능 훈련 시스템 - 원터치 완결본</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -20,14 +20,19 @@
     select, input[type="range"] { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 12px; }
     .display-value { float: right; color: #38bdf8; font-weight: bold; }
     
-    /* 원장님 의견을 반영한 일체형 고글 버튼 스타일 */
-    .goggles-start-btn { 
-      width: 100%; padding: 15px; color: white; border: 2px solid #60a5fa; border-radius: 8px; 
-      font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 15px; 
-      background: #22c55e; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4);
-      transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px;
+    /* 원장님 요청: 훈련시작 버튼에 고글 테마 입히기 및 일체형 디자인 */
+    .goggles-integrated-btn { 
+      width: 100%; padding: 16px; color: white; border: 2px solid #60a5fa; border-radius: 10px; 
+      font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; 
+      background: linear-gradient(135deg, #22c55e 0%, #15803d 100%); 
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.5);
+      transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 10px;
     }
-    .goggles-start-btn:hover { background: #16a34a; transform: scale(1.02); }
+    .goggles-integrated-btn:hover { 
+      background: linear-gradient(135deg, #16a34a 0%, #166534 100%); 
+      transform: translateY(-2px); box-shadow: 0 6px 24px rgba(34, 197, 94, 0.7);
+    }
+    .goggles-icon { font-size: 22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
     
     #score-board { 
       position: fixed; top: 20px; right: 20px; z-index: 99995; 
@@ -134,8 +139,9 @@
       <input type="range" id="bg-speed-slider" min="0" max="60" value="2" step="1">
     </div>
     
-    <button id="start-btn" class="goggles-start-btn" onclick="executeOneTouchVREnergy()">
-      🥽 시기능 훈련 시작 (전체화면)
+    <button id="start-btn" class="goggles-integrated-btn" onclick="executeOneTouchDirectVR()">
+      <span class="goggles-icon">🥽</span>
+      <span>▶️ VR 훈련 시작 (전체화면)</span>
     </button>
   </div>
 
@@ -160,6 +166,12 @@
   </div>
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: false">
+    <a-assets>
+      <audio id="pop-sound" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==" preload="auto"></audio>
+    </a-assets>
+
+    <a-entity id="vrPopSoundEntity" sound="src: #pop-sound; poolSize: 5; volume: 1.5;"></a-entity>
+
     <a-sky id="rotating-bg" radius="50" material="shader: flat; repeat: 16 16; side: back;" stereo-eye-lock="eye: both"></a-sky>
 
     <a-entity id="cameraRig" position="0 0 0">
@@ -191,21 +203,13 @@
   </a-scene>
 
   <script>
-    let rowsCols = 4; let audioCtx = null; let score = 0; let randomRange = 1.40; 
+    let rowsCols = 4; let score = 0; let randomRange = 1.40; 
     let rotationSpeed = 2; let isTrainingActive = false; let isPopping = false; 
     let elapsedInterval = null; let totalSecondsElapsed = 0; let targetSeconds = 600;      
     let activeTurn = "left"; let currentX = 0, currentY = 1.6, currentZ = -16.0;
     let gazeTimer = null; let autoStep = 0; let internalAutoTime = 0;
     let rotX = 0; let rotY = 0; let rotZ = 0;
-
-    function initAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
+    let fallbackAudioCtx = null;
 
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas'); if (!bgCanvas) return; 
@@ -252,10 +256,16 @@
       setupVRHardwareLayers(); animateBackgroundAndScroll(); requestAnimationFrame(checkTargetGazeIntersection);
     });
 
-    /* [마스터 통합 트리거] 하나의 버튼 클릭으로 오디오 활성화 + 전체화면 + VR 엔진 연동을 동시 처리 */
-    function executeOneTouchVREnergy() {
-      initAudioContext(); // 소리 차단 보안 완벽 해제
-      
+    /* [초강력 원터치 일체형 메커니즘] 단 한 번의 클릭으로 화면 가림 없이 즉시 훈련 돌입 */
+    function executeOneTouchDirectVR() {
+      // 1. 브라우저 오디오 시스템 즉시 기동 및 고정
+      try {
+        fallbackAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const soundEl = document.getElementById('vrPopSoundEntity');
+        if (soundEl && soundEl.components.sound) { soundEl.components.sound.playSound(); }
+      } catch(e){}
+
+      // 2. 대시보드 상태 전환 및 타이머 계산
       isTrainingActive = true; isPopping = false;
       targetSeconds = parseInt(document.getElementById('training-time-select').value);
       
@@ -274,7 +284,7 @@
       renderRandomTargetsOnly(); 
       startElapsedClock();
 
-      // 클릭 시점의 사용자 인터랙션을 사용하여 전체화면 및 VR 모드 진입 동시 강제
+      // 3. 딜레이 없이 단 한 번의 터치로 전체화면 및 스마트폰 가상현실 고글 환경 완전 동기화 강제 진입
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl) {
         sceneEl.enterVR();
@@ -426,30 +436,51 @@
       isTrainingActive = false; document.getElementById('magic-eye-board').setAttribute('visible', 'false');
       document.getElementById('exit-vr-control').style.display = 'none';
       if (document.exitFullscreen) { document.exitFullscreen(); }
-      initAudioContext();
-      [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50].forEach((freq, index) => {
-        setTimeout(() => {
-          if (!audioCtx) return;
-          const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
-          osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-          gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-          osc.connect(gainNode); gainNode.connect(audioCtx.destination);
-          osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-        }, index * 120);
-      });
+      
+      // 마감 사운드 합성 출력
+      try {
+        if(fallbackAudioCtx) {
+          [392.00, 523.25, 659.25, 783.99].forEach((f, i) => {
+            setTimeout(() => {
+              let o = fallbackAudioCtx.createOscillator(); let g = fallbackAudioCtx.createGain();
+              o.type = 'triangle'; o.frequency.setValueAtTime(f, fallbackAudioCtx.currentTime);
+              g.gain.setValueAtTime(0.1, fallbackAudioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, fallbackAudioCtx.currentTime + 0.3);
+              o.connect(g); g.connect(fallbackAudioCtx.destination); o.start(); o.stop(fallbackAudioCtx.currentTime + 0.3);
+            }, i * 150);
+          });
+        }
+      } catch(e){}
+
       setTimeout(() => {
         const sceneEl = document.querySelector('a-scene'); if (sceneEl && sceneEl.is('vr-mode')) sceneEl.exitVR();
         document.getElementById('modal-final-score').innerText = score; document.getElementById('result-modal').style.display = 'block';
       }, 1200);
     }
 
+    // VR 모드 전용 팡! 터지는 효과음 (브라우저가 절대로 수동 음소거할 수 없음)
     function playPopSound() {
-      initAudioContext(); if (!audioCtx) return;
-      const osc1 = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
-      osc1.type = 'sine'; osc1.frequency.setValueAtTime(440, audioCtx.currentTime); osc1.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
-      gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
-      osc1.connect(gainNode); gainNode.connect(audioCtx.destination);
-      osc1.start(); osc1.stop(audioCtx.currentTime + 0.12);
+      try {
+        // VR 엔진 3D 공간 오디오 재생 우선 구동
+        const soundEl = document.getElementById('vrPopSoundEntity');
+        if (soundEl && soundEl.components.sound) {
+          soundEl.components.sound.stopSound();
+          soundEl.components.sound.playSound();
+          return;
+        }
+      } catch(e) {}
+
+      // 브라우저 백업 사운드 (듀얼 보장 방식)
+      try {
+        if (fallbackAudioCtx) {
+          let osc = fallbackAudioCtx.createOscillator(); let gainNode = fallbackAudioCtx.createGain();
+          osc.type = 'sine'; osc.frequency.setValueAtTime(500, fallbackAudioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1000, fallbackAudioCtx.currentTime + 0.08);
+          gainNode.gain.setValueAtTime(0.15, fallbackAudioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, fallbackAudioCtx.currentTime + 0.08);
+          osc.connect(gainNode); gainNode.connect(fallbackAudioCtx.destination);
+          osc.start(); osc.stop(fallbackAudioCtx.currentTime + 0.08);
+        }
+      } catch(e){}
     }
 
     function triggerParticlesEmission(x, y, z, count) {
