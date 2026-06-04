@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V20.7 (황금 비례 및 시선 커서 완전 동기화판)</title>
+  <title>VR 시기능 훈련 시스템 V20.9 (치료사님 지시 반영: 풍선 배경쪽 완전 이동판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -49,7 +49,6 @@
       }
     });
 
-    // 시선 커서 진입 감지 정품 컴포넌트
     AFRAME.registerComponent('gaze-target-action', {
       init: function () {
         this.el.addEventListener('mouseenter', () => {
@@ -178,7 +177,6 @@
     
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-        
         <a-entity cursor="fuse: false;" raycaster="objects: .balloon-target; far: 60; interval: 50;" position="0 0 -1"></a-entity>
         
         <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
@@ -219,7 +217,7 @@
     let totalDurationSet = 180;
 
     let activeTurn = "left"; 
-    let currentX = 0, currentY = 1.6, currentZ = -48.5; 
+    let currentX = 0, currentY = 1.6, currentZ = -45.2; 
     let gazeTimer = null;
     let rotX = 0, rotY = 0, rotZ = 0;
     
@@ -375,17 +373,20 @@
       if (!window.isTrainingActive) return;
       
       let camPos = {x: 0, y: 1.6, z: 0};
-      let zOffset = 48.5; 
-      let baseZ = camPos.z - zOffset;
+      let ringZOffset = 45.0;  // 링은 피검자 쪽 가까이 (-45.0)
+      let ballZOffset = 45.2;  // 풍선은 배경 쪽으로 완전 밀기 (-45.2)
       
-      let spreadFactor = zOffset / 4.2; 
+      let baseRingZ = camPos.z - ringZOffset;
+      let baseBallZ = camPos.z - ballZOffset;
+      
+      let spreadFactor = ballZOffset / 4.2; 
       
       let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.25 * spreadFactor);
       let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 0.95 * spreadFactor);
       if (randY < camPos.y - (0.5 * spreadFactor)) randY = camPos.y - (0.5 * spreadFactor);
       if (randY > camPos.y + (0.7 * spreadFactor)) randY = camPos.y + (0.7 * spreadFactor);
       
-      currentX = randX; currentY = randY; currentZ = baseZ;
+      currentX = randX; currentY = randY; currentZ = baseBallZ;
 
       const hudL = document.getElementById('hud-left');
       const hudR = document.getElementById('hud-right');
@@ -415,16 +416,16 @@
         }
       }
 
-      // 황금 비율 반지름 1.6 정치
-      bLeft.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+      // ★ 풍선을 배경 쪽(-45.2)으로 완전히 밀어서 배치
+      bLeft.setAttribute('position', `${randX} ${randY} ${baseBallZ}`);
       bLeft.setAttribute('radius', '1.6'); 
-      bRight.setAttribute('position', `${randX} ${randY} ${baseZ}`);
+      bRight.setAttribute('position', `${randX} ${randY} ${baseBallZ}`);
       bRight.setAttribute('radius', '1.6');
 
-      // 미니 링 정중앙 배치 복구
-      let ipdShift = 0.485; 
-      rLeft.setAttribute('position', `${randX - ipdShift} ${randY} ${baseZ + 0.05}`);
-      rRight.setAttribute('position', `${randX + ipdShift} ${randY} ${baseZ + 0.05}`);
+      // ★ 링은 피검자 쪽(-45.0)으로 가깝게 배치하여 풍선이 링을 덮어쓰지 못하게 격리
+      let ipdShiftRing = 0.45; 
+      rLeft.setAttribute('position', `${randX - ipdShiftRing} ${randY} ${baseRingZ}`);
+      rRight.setAttribute('position', `${randX + ipdShiftRing} ${randY} ${baseRingZ}`);
     }
 
     window.startGazeTimerInternal = function() {
