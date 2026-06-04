@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 단안·MFBF 통합형 시각격자 자극 시스템 V28.2</title>
+  <title>VR 단안·MFBF 통합형 시각격자 자극 시스템 V28.0</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -24,6 +24,18 @@
     
     .btn { width: 100%; padding: 14px; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; letter-spacing: 0.5px; }
     #start-btn { background: #16a34a; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.4); margin-bottom: 5px; }
+    
+    #score-board { 
+      position: fixed; top: 20px; right: 20px; z-index: 99999; 
+      background: rgba(15, 23, 42, 0.95); color: #ffffff; padding: 18px 20px; 
+      border-radius: 12px; border: 2px solid #3b82f6; width: 240px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .score-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 14px; }
+    .score-label { color: #94a3b8; font-weight: bold; font-size: 12px; }
+    .score-value { font-family: monospace; font-size: 16px; font-weight: bold; }
+    #mode-status-badge { background: #1e1b4b; color: #38bdf8; border: 1px solid #3b82f6; padding: 6px; text-align: center; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; }
+    .exit-vr-btn { width: 100%; background: #ef4444; color: white; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 5px; display: none; }
+    .center-branding { font-size: 11px; color: #38bdf8; font-weight: bold; text-align: center; margin-top: 12px; border-top: 1px dashed rgba(56, 189, 248, 0.3); padding-top: 8px; }
 
     #result-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100000; background: rgba(11, 16, 26, 0.98); color: white; padding: 35px 50px; border-radius: 15px; border: 3px solid #38bdf8; text-align: center; }
     .final-score { font-size: 32px; color: #eab308; margin: 20px 0; font-weight: bold; }
@@ -34,7 +46,7 @@
 
   <div id="control-panel">
     <div class="panel-header">
-      <div class="panel-title">한국시기능훈련센터 성서계명대점<br><span style="font-size:11px; color:#aaa; font-weight:normal;">시기능 자극 시스템 설정 V28.2</span></div>
+      <div class="panel-title">한국시기능훈련센터 성서계명대점<br><span style="font-size:11px; color:#aaa; font-weight:normal;">시기능 자극 시스템 설정 V28.0</span></div>
       
       <button id="start-btn" class="btn" onclick="startFusionTraining()">▶️ 시각자극 프로토콜 가동</button>
       
@@ -121,6 +133,22 @@
         </select>
       </div>
     </div>
+  </div>
+
+  <div id="score-board">
+    <div class="score-row" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+      <span class="score-label" style="color: #ef4444;">⏱️ 시간경과</span>
+      <span class="score-value" id="val-time" style="color: #ef4444; font-size:18px;">00:00</span>
+    </div>
+    <div class="score-row" style="margin-top: 10px;">
+      <span class="score-label" style="color: #22c55e;">🎯 성공개수</span>
+      <span class="score-value" id="val-success-count" style="color: #22c55e; font-size:18px;">0</span>
+    </div>
+    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0;">
+    <div class="score-label" style="margin-bottom: 6px;">🔍 현재 훈련 프로토콜</div>
+    <div id="mode-status-badge">훈련 대기 중</div>
+    <button id="exit-vr-control" class="exit-vr-btn" onclick="exitVRModeManually()">🔴 훈련중단 및 복귀</button>
+    <div class="center-branding">한국시기능훈련센터 성서계명대점</div>
   </div>
 
   <div id="result-modal">
@@ -227,13 +255,17 @@
 
     function updateClinicalBadgePreview() {
       const mode = document.getElementById('clinical-mode-select').value;
+      const badge = document.getElementById('mode-status-badge');
       if (mode === "left-only") {
-        activeTurn = "left";
+        activeTurn = "left"; badge.innerText = "🟢 좌안 훈련 (녹색 풍선)"; badge.style.color = "#10b981"; badge.style.borderColor = "#10b981";
       } else if (mode === "right-only") {
-        activeTurn = "right";
+        activeTurn = "right"; badge.innerText = "🔴 우안 훈련 (빨간 풍선)"; badge.style.color = "#ff2a2a"; badge.style.borderColor = "#ff2a2a";
+      } else {
+        badge.innerText = "🔵 MFBF 양안 교대 자극"; badge.style.color = "#38bdf8"; badge.style.borderColor = "#3b82f6";
       }
     }
 
+    // [★V28.0 철저한 공간 분리 및 오타 전수 수술 완료★]
     function rebuildTargetBalloon() {
       const globalSpace = document.getElementById('global-balloon-space');
       const cameraEl = document.getElementById('mainCamera');
@@ -248,26 +280,32 @@
       if (mode === "left-only") activeTurn = "left";
       if (mode === "right-only") activeTurn = "right";
 
+      // 1. 내장 객체를 이용해 완벽한 월드 정면 벡터 계산 (오타 원천 차단)
       let camWorldPos = new THREE.Vector3();
       cameraEl.object3D.getWorldPosition(camWorldPos);
 
       let camWorldDir = new THREE.Vector3();
       cameraEl.object3D.getWorldDirection(camWorldDir);
-      camWorldDir.negate(); 
+      camWorldDir.negate(); // Three.js 특성상 정면은 역방향이므로 반전
 
+      // 2. 가변 초점 깊이 무작위 결정 (3.0m ~ 4.5m)
       let randomDistance = 3.0 + (Math.random() * 1.5);
       
+      // 흰색 원 조준선 깊이를 풍선과 완벽 동기화 (복시 차단)
       gazeRing.setAttribute('position', `0 0 ${-randomDistance + 0.05}`);
       let ringScale = randomDistance / 3.5;
       gazeRing.setAttribute('radius-inner', 0.018 * ringScale);
       gazeRing.setAttribute('radius-outer', 0.025 * ringScale);
 
+      // 3. 정면축 기준 상하좌우 완전 직교 벡터 추출
       let rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraEl.object3D.quaternion);
       let upVec = new THREE.Vector3(0, 1, 0).applyQuaternion(cameraEl.object3D.quaternion);
 
+      // 주변시 영역에 확실히 배치되도록 상하좌우 편차 설정 (정중앙 폭발 완벽 차단)
       let spreadX = (Math.random() > 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.4);
       let spreadY = (Math.random() > 0.5 ? 1 : -1) * (0.2 + Math.random() * 0.3);
 
+      // 4. 전역(우주) 공간 상의 절대 실좌표 완성
       targetWorldPos.x = camWorldPos.x + (camWorldDir.x * randomDistance) + (rightVec.x * spreadX) + (upVec.x * spreadY);
       targetWorldPos.y = camWorldPos.y + (camWorldDir.y * randomDistance) + (rightVec.y * spreadX) + (upVec.y * spreadY);
       targetWorldPos.z = camWorldPos.z + (camWorldDir.z * randomDistance) + (rightVec.z * spreadX) + (upVec.z * spreadY);
@@ -276,6 +314,7 @@
       let finalRadius = 0.16 * (randomDistance / 3.5) * userBaseMultiplier;
       if(finalRadius < 0.08) finalRadius = 0.08;
 
+      // 5. 전역 3D 공간 레이어에 풍선 독립 객체 생성 고정
       const balloon = document.createElement('a-entity');
       balloon.setAttribute('class', 'gaze-secure-trigger');
       balloon.setAttribute('position', `${targetWorldPos.x} ${targetWorldPos.y} ${targetWorldPos.z}`);
@@ -283,9 +322,13 @@
       if (activeTurn === "left") {
         balloon.setAttribute('geometry', `primitive: sphere; radius: ${finalRadius}`);
         balloon.setAttribute('material', 'color: #10b981; roughness: 0.1; metalness: 0.1;');
+        const badge = document.getElementById('mode-status-badge');
+        if (mode === "mfbf") { badge.innerText = "🔵 MFBF (현재 타겟: 좌안 🟢)"; badge.style.color = "#10b981"; }
       } else {
         balloon.setAttribute('geometry', `primitive: sphere; radius: ${finalRadius}`);
         balloon.setAttribute('material', 'color: #ff2a2a; roughness: 0.1; metalness: 0.1;');
+        const badge = document.getElementById('mode-status-badge');
+        if (mode === "mfbf") { badge.innerText = "🔵 MFBF (현재 타겟: 우안 🔴)"; badge.style.color = "#ff2a2a"; }
       }
 
       globalSpace.appendChild(balloon);
@@ -296,6 +339,7 @@
       rebuildTargetBalloon();
     }
 
+    // 정밀 조준 레이캐스터 조율 루프
     function checkTargetGazeIntersection() {
       requestAnimationFrame(checkTargetGazeIntersection);
       if (!isTrainingActive || isPopping) return; 
@@ -304,6 +348,7 @@
       if (!raycasterEl) return;
       let raycasterComponent = raycasterEl.components.raycaster;
       
+      // 사용자가 고개를 진짜 움직여 조준선 안에 전역 풍선을 가두었을 때만 트리거 작동
       if (raycasterComponent && raycasterComponent.intersections && raycasterComponent.intersections.length > 0) {
         if (!isGazeIntersecting) {
           isGazeIntersecting = true; gazeHoldStartTime = performance.now(); 
@@ -319,6 +364,7 @@
 
     function popTargetSuccess() {
       successCount++; playPopSound(); 
+      document.getElementById('val-success-count').innerText = successCount;
       
       triggerParticlesEmission(targetWorldPos.x, targetWorldPos.y, targetWorldPos.z, 15);
       
@@ -363,6 +409,7 @@
       elapsedInterval = setInterval(() => {
         if (!isTrainingActive) return;
         totalSecondsElapsed++;
+        document.getElementById('val-time').innerText = `${Math.floor(totalSecondsElapsed / 60).toString().padStart(2, '0')}:${(totalSecondsElapsed % 60).toString().padStart(2, '0')}`;
         if (mode === "auto-protocol") {
           let calculatedStage = Math.floor(totalSecondsElapsed / stageDurationSeconds);
           if (calculatedStage < 6) currentStageIndex = calculatedStage;
@@ -375,6 +422,7 @@
       isTrainingActive = false;
       const globalSpace = document.getElementById('global-balloon-space');
       if(globalSpace) globalSpace.innerHTML = "";
+      document.getElementById('exit-vr-control').style.display = 'none';
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const notes = [261.63, 392.00, 523.25, 783.99, 1046.50];
       notes.forEach((freq, index) => {
@@ -425,15 +473,18 @@
       const globalSpace = document.getElementById('global-balloon-space');
       if(globalSpace) globalSpace.innerHTML = "";
       document.getElementById('control-panel').style.display = 'flex';
+      document.getElementById('exit-vr-control').style.display = 'none';
       updateClinicalBadgePreview();
       const sceneEl = document.querySelector('a-scene'); if (sceneEl && sceneEl.is('vr-mode')) sceneEl.exitVR();
     }
 
     function startFusionTraining() {
       isTrainingActive = true; isPopping = false; successCount = 0;
+      document.getElementById('val-success-count').innerText = "0";
       drawBackgroundGrid();
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       document.getElementById('control-panel').style.display = 'none';
+      document.getElementById('exit-vr-control').style.display = 'block';
       updateClinicalBadgePreview();
       renderAlternatingTargets(); startElapsedClock();
       const sceneEl = document.querySelector('a-scene');
