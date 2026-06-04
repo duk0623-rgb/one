@@ -6,14 +6,39 @@
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
-    #control-panel { position: absolute; top: 15px; left: 15px; z-index: 99999; background: rgba(11, 15, 26, 0.95); color: white; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; width: 310px; }
-    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6; }
-    .panel-group { margin-bottom: 12px; background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 8px; }
+    
+    /* 왼쪽 컨트롤 패널 */
+    #control-panel {
+      position: absolute; top: 15px; left: 15px; z-index: 99999;
+      background: rgba(11, 15, 26, 0.95); color: white; padding: 20px;
+      border-radius: 12px; border: 1px solid #3b82f6; width: 310px;
+    }
+    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; }
+    .panel-group { margin-bottom: 10px; background: rgba(30, 41, 59, 0.5); padding: 8px; border-radius: 8px; }
+    label { display: block; margin-bottom: 5px; font-size: 12px; color: #cbd5e1; }
     select, input { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; }
-    .btn { width: 100%; padding: 12px; background: #22c55e; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 6px; }
-    #score-board { position: fixed; top: 20px; right: 20px; z-index: 99999; background: rgba(15, 23, 42, 0.95); color: #fff; padding: 15px; border-radius: 10px; border: 2px solid #38bdf8; width: 280px; }
-    .exit-vr-btn { width: 100%; background: #ef4444; color: white; border: none; padding: 8px; margin-top: 10px; cursor: pointer; }
+    .btn { width: 100%; padding: 10px; background: #22c55e; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 6px; }
+    
+    #result-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100000; background: #0b101a; color: white; padding: 40px; border-radius: 15px; border: 3px solid #38bdf8; text-align: center; }
   </style>
+  
+  <script>
+    AFRAME.registerComponent('stereo-eye-lock', {
+      schema: { eye: {type: 'string', default: 'both'} },
+      init: function () {
+        this.layerMask = (this.data.eye === 'left') ? 1 : (this.data.eye === 'right' ? 2 : 0);
+        this.el.addEventListener('object3dset', () => { this.applyLayer(); });
+        this.applyLayer();
+      },
+      applyLayer: function () {
+        const obj = this.el.getObject3D('mesh') || this.el.object3D;
+        if (obj) {
+          obj.layers.set(this.layerMask);
+          obj.traverse(child => { if(child.layers) child.layers.set(this.layerMask); });
+        }
+      }
+    });
+  </script>
 </head>
 <body>
 
@@ -21,20 +46,21 @@
     <div class="center-title">한국시기능훈련센터 성서계명대점</div>
     <div class="panel-group">
       <label>⏱️ 훈련 시간</label>
-      <select id="training-time-select"><option value="600" selected>10분</option></select>
+      <select id="training-time-select"><option value="600" selected>10분 (정밀)</option></select>
     </div>
-    <button class="btn" onclick="startFusionTraining()">▶️ 훈련 시작</button>
+    <button id="start-btn" class="btn" onclick="startFusionTraining()">▶️ 훈련 시작</button>
   </div>
 
-  <div id="score-board">
-    <div>남은시간: <span id="val-time">10:00</span></div>
-    <div>점수: <span id="val-score">0000</span></div>
-    <button id="exit-vr-control" class="exit-vr-btn" style="display:none;" onclick="exitVRModeManually()">🔴 훈련 중단</button>
+  <div id="result-modal">
+    <h1>🎉 훈련 완료 🎉</h1>
+    <button class="btn" onclick="location.reload()">처음으로</button>
   </div>
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: true">
-    <a-sky id="rotating-bg" color="#111"></a-sky>
+    <a-sky id="rotating-bg" radius="50" material="shader: flat; color: #111;"></a-sky>
+    
     <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
+    
     <a-entity id="magic-eye-board" visible="false">
       <a-sphere id="balloon-left" position="0 1.6 -5" color="#ff2a2a" radius="0.5"></a-sphere>
     </a-entity>
@@ -42,37 +68,13 @@
 
   <script>
     let isTrainingActive = false;
-    let audioCtx = null;
 
     function startFusionTraining() {
-      // 1. 상태 활성화
       isTrainingActive = true;
-      
-      // 2. UI 숨김 (즉시 적용)
       document.getElementById('control-panel').style.display = 'none';
-      document.getElementById('score-board').style.display = 'none'; // VR 시야 가림 방지
-      document.getElementById('exit-vr-control').style.display = 'block';
-      
-      // 3. VR 진입 및 훈련 시작
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       
       const sceneEl = document.querySelector('a-scene');
-      sceneEl.enterVR();
-    }
-
-    function exitVRModeManually() {
-      // 1. 상태 비활성화
-      isTrainingActive = false;
-      
-      // 2. UI 복구
-      document.getElementById('control-panel').style.display = 'block';
-      document.getElementById('score-board').style.display = 'block';
-      document.getElementById('exit-vr-control').style.display = 'none';
-      
-      // 3. VR 종료
-      const sceneEl = document.querySelector('a-scene');
-      sceneEl.exitVR();
+      sceneEl.enterVR(); // VR 모드 즉시 진입
     }
   </script>
 </body>
