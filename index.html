@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V21.0 (풍선-링 일체화 및 주시각 정밀 정렬판)</title>
+  <title>VR 시기능 훈련 시스템 V21.3 (시선 센서 관통 및 타격 판정 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -46,6 +46,16 @@
           obj.layers.set(this.layerMask);
           obj.traverse(child => { if(child.layers) child.layers.set(this.layerMask); });
         }
+      }
+    });
+
+    // ★[새로운 컴포넌트] 레이캐스터 센서 광선이 링을 무조건 관통하여 패스하도록 보장
+    AFRAME.registerComponent('raycaster-ignore', {
+      init: function () {
+        this.el.addEventListener('object3dset', () => {
+          const mesh = this.el.getObject3D('mesh');
+          if (mesh) { mesh.raycast = function () { return null; }; } // 레이캐스트 연산 강제 무력화
+        });
       }
     });
 
@@ -192,15 +202,15 @@
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
         <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a" radius="1.6">
           <a-cone id="cone-left" color="#cc1111" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
-          <a-ring id="gaze-ring-left" radius-inner="0.3" radius-outer="0.6" color="#000000" position="0 0 0.05" material="shader: flat; opacity: 1.0; depthTest: false;" raycaster-ignore></a-ring>
         </a-sphere>
+        <a-ring id="gaze-ring-left" raycaster-ignore radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
         <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981" radius="1.6">
           <a-cone id="cone-right" color="#047857" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
-          <a-ring id="gaze-ring-right" radius-inner="0.3" radius-outer="0.6" color="#000000" position="0 0 0.05" material="shader: flat; opacity: 1.0; depthTest: false;" raycaster-ignore></a-ring>
         </a-sphere>
+        <a-ring id="gaze-ring-right" raycaster-ignore radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
     </a-entity>
     <a-entity id="particle-group"></a-entity>
@@ -373,17 +383,17 @@
       if (!window.isTrainingActive) return;
       
       let camPos = {x: 0, y: 1.6, z: 0};
-      let zOffset = 45.0; // 훈련 표준 거리 안착
-      let baseZ = camPos.z - zOffset;
+      let balloonZ = camPos.z - 45.0;
+      let ringZ = camPos.z - 44.8;
       
-      let spreadFactor = zOffset / 4.2; 
+      let spreadFactor = 45.0 / 4.2; 
       
       let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.25 * spreadFactor);
       let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 0.95 * spreadFactor);
       if (randY < camPos.y - (0.5 * spreadFactor)) randY = camPos.y - (0.5 * spreadFactor);
       if (randY > camPos.y + (0.7 * spreadFactor)) randY = camPos.y + (0.7 * spreadFactor);
       
-      currentX = randX; currentY = randY; currentZ = baseZ;
+      currentX = randX; currentY = randY; currentZ = balloonZ;
 
       const hudL = document.getElementById('hud-left');
       const hudR = document.getElementById('hud-right');
@@ -392,6 +402,8 @@
       
       const bLeft = document.getElementById('balloon-left');
       const bRight = document.getElementById('balloon-right');
+      const rLeft = document.getElementById('gaze-ring-left');
+      const rRight = document.getElementById('gaze-ring-right');
 
       if (eyeModeSetting === "leftOnly") {
         activeTurn = "left";
@@ -411,14 +423,13 @@
         }
       }
 
-      // ★[핵심 정렬] 거리에 최적화된 양안 주시 편차(IPD Shift) 값 보정 적용하여 눈앞 정면 일치
-      let exactIpdShift = 0.54; 
+      let exactIpdShift = 0.033; 
       
-      // 왼쪽 눈 전용 타겟 좌표 세팅
-      bLeft.setAttribute('position', `${randX - exactIpdShift} ${randY} ${baseZ}`);
+      bLeft.setAttribute('position', `${randX - exactIpdShift} ${randY} ${balloonZ}`);
+      rLeft.setAttribute('position', `${randX - exactIpdShift} ${randY} ${ringZ}`);
       
-      // 오른쪽 눈 전용 타겟 좌표 세팅
-      bRight.setAttribute('position', `${randX + exactIpdShift} ${randY} ${baseZ}`);
+      bRight.setAttribute('position', `${randX + exactIpdShift} ${randY} ${balloonZ}`);
+      rRight.setAttribute('position', `${randX + exactIpdShift} ${randY} ${ringZ}`);
     }
 
     window.startGazeTimerInternal = function() {
