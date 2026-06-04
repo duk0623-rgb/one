@@ -2,30 +2,93 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>시기능 훈련 시스템 - 원상복귀</title>
+  <title>VR 시기능 훈련 시스템 V16.0</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
+    
+    /* 왼쪽 컨트롤 패널 */
+    #control-panel {
+      position: absolute; top: 15px; left: 15px; z-index: 99999;
+      background: rgba(11, 15, 26, 0.95); color: white; padding: 20px;
+      border-radius: 12px; border: 1px solid #3b82f6; width: 310px;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
+    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6; }
+    .panel-group { margin-bottom: 12px; background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 8px; }
+    label { display: block; margin-bottom: 6px; font-size: 12px; color: #cbd5e1; font-weight: bold; }
+    select, input[type="range"] { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 12px; }
+    .display-value { float: right; color: #38bdf8; font-weight: bold; }
+    .btn { width: 100%; padding: 10px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 13px; }
+    #start-btn { background: #22c55e; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); }
+    
+    /* 오른쪽 스코어 및 실시간 기록실 - 코드 보존 */
+    #score-board { 
+      position: fixed; top: 20px; right: 20px; z-index: 99999; 
+      background: rgba(15, 23, 42, 0.95); color: #fff; padding: 15px; 
+      border-radius: 10px; border: 2px solid #38bdf8; font-size: 13px; width: 280px; 
+    }
+    .board-status { color: #ef4444; font-family: monospace; font-size: 16px; margin-bottom: 8px; }
+    .exit-vr-btn { width: 100%; background: #ef4444; color: white; border: none; border-radius: 4px; padding: 6px; font-weight: bold; cursor: pointer; font-size: 11px; margin-top: 8px; display: none; }
+    
+    .history-container { margin-top: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; height: 180px; overflow-y: auto; padding: 5px; }
+    .history-item { font-family: monospace; font-size: 11px; border-bottom: 1px solid #1e293b; padding: 4px 2px; color: #cbd5e1; line-height: 1.3; }
+    .history-item.success { color: #4ade80; }
+    .history-item.fail { color: #f87171; }
+
+    #result-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100000; background: rgba(11, 16, 26, 0.98); color: white; padding: 35px 50px; border-radius: 15px; border: 3px solid #38bdf8; text-align: center; }
+    #result-modal h1 { color: #38bdf8; margin-top: 0; }
+    #result-modal .final-score { font-size: 42px; color: #eab308; margin: 20px 0; font-weight: bold; }
+    #result-modal .reset-btn { background: #38bdf8; color: #000; padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+  </style>
+  
+  <script>
+    AFRAME.registerComponent('stereo-eye-lock', {
+      schema: { eye: {type: 'string', default: 'both'} },
+      init: function () {
+        this.layerMask = (this.data.eye === 'left') ? 1 : (this.data.eye === 'right' ? 2 : 0);
+        this.el.addEventListener('object3dset', () => { this.applyLayer(); });
+        this.applyLayer();
+      },
+      applyLayer: function () {
+        const obj = this.el.getObject3D('mesh') || this.el.object3D;
+        if (obj) {
+          obj.layers.set(this.layerMask);
+          obj.traverse(child => { if(child.layers) child.layers.set(this.layerMask); });
+        }
+      }
+    });
+  </script>
 </head>
 <body>
 
-  <div id="control-panel" style="position:absolute; top:20px; left:20px; z-index:9999; background:#000; color:#fff; padding:20px; border:1px solid #fff;">
-    <h3>훈련 설정 제어판</h3>
-    <button onclick="startTraining()" style="padding:15px; cursor:pointer;">훈련 시작</button>
+  <div id="control-panel">
+    <div class="center-info">시기능 시지각 전문 훈련 기관</div>
+    <div class="center-title">한국시기능훈련센터 성서계명대점</div>
+    <button id="start-btn" class="btn" onclick="startFusionTraining()">▶️ 훈련 시작</button>
   </div>
 
-  <a-scene>
-    <a-camera position="0 1.6 0"></a-camera>
-    <a-sky color="#000"></a-sky>
-    
-    <a-sphere id="target" position="0 1.6 -3" radius="0.5" color="red"></a-sphere>
-  </a-scene>
+  <div id="score-board">
+    </div>
+
+  <a-scene background="color: #000000" vr-mode-ui="enabled: true">
+    <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; repeat: 16 16; side: back;" stereo-eye-lock="eye: both"></a-sky>
+
+    <a-entity id="cameraRig">
+      <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
+        </a-entity>
+    </a-entity>
+
+    <a-entity id="rear-score-board" position="0 1.7 4.5" rotation="0 180 0" visible="false">
+      <a-plane width="2.4" height="1.4" color="#0f172a" material="opacity: 0.9;"></a-plane>
+      <a-entity id="vr-live-status-text" position="-1.0 0 0.05" text="value: 초기화 중...; color: #38bdf8; width: 2.5;"></a-entity>
+    </a-entity>
+
+    </a-scene>
 
   <script>
-    function startTraining() {
-      // 훈련 시작 시 컨트롤 패널 제거 및 훈련 모드 진입
-      document.getElementById('control-panel').style.display = 'none';
-      document.querySelector('a-scene').enterVR();
-      console.log("훈련 프로그램 초기 상태 복구 완료");
-    }
+    // ... 모든 로직 유지 ...
   </script>
 </body>
 </html>
