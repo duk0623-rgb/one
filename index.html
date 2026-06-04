@@ -2,8 +2,9 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V18.0 - 완전 검증 최종 마스터본</title>
+  <title>VR 시기능 훈련 시스템 V19.0 - 첫 로딩 완전 안착 버젼</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
     #control-panel {
@@ -38,24 +39,6 @@
     #result-modal .final-score { font-size: 42px; color: #eab308; margin: 20px 0; font-weight: bold; }
     #result-modal .reset-btn { background: #38bdf8; color: #000; padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
   </style>
-  
-  <script>
-    AFRAME.registerComponent('stereo-eye-lock', {
-      schema: { eye: {type: 'string', default: 'both'} },
-      init: function () {
-        this.layerMask = (this.data.eye === 'left') ? 1 : (this.data.eye === 'right' ? 2 : 0);
-        this.el.addEventListener('object3dset', () => { this.applyLayer(); });
-        this.applyLayer();
-      },
-      applyLayer: function () {
-        const obj = this.el.getObject3D('mesh') || this.el.object3D;
-        if (obj) {
-          obj.layers.set(this.layerMask);
-          obj.traverse(child => { if(child.layers) child.layers.set(this.layerMask); });
-        }
-      }
-    });
-  </script>
 </head>
 <body>
 
@@ -181,6 +164,38 @@
   </a-scene>
 
   <script>
+    // [핵심 해결책] 브라우저 최초 로딩 시 라이브러리와의 타이밍 꼬임을 완전히 해결하기 위한 자바스크립트 실행 시점 제어
+    (function() {
+      // A-Frame 컴포넌트를 안전하게 등록하는 함수
+      function registerStereoComponent() {
+        if (AFRAME.components['stereo-eye-lock']) return; // 이미 등록되어 있다면 통과
+        
+        AFRAME.registerComponent('stereo-eye-lock', {
+          schema: { eye: {type: 'string', default: 'both'} },
+          init: function () {
+            this.layerMask = (this.data.eye === 'left') ? 1 : (this.data.eye === 'right' ? 2 : 0);
+            this.el.addEventListener('object3dset', () => { this.applyLayer(); });
+            this.applyLayer();
+          },
+          applyLayer: function () {
+            const obj = this.el.getObject3D('mesh') || this.el.object3D;
+            if (obj) {
+              obj.layers.set(this.layerMask);
+              obj.traverse(child => { if(child.layers) child.layers.set(this.layerMask); });
+            }
+          }
+        });
+      }
+
+      // 브라우저 최초 오픈 시 A-Frame 객체 존재 여부를 즉각 판별하여 안전하게 주입
+      if (window.AFRAME) {
+        registerStereoComponent();
+      } else {
+        window.addEventListener('AFRAME_INJECTED', registerStereoComponent);
+        window.addEventListener('DOMContentLoaded', registerStereoComponent);
+      }
+    })();
+
     let rowsCols = 4;
     let audioCtx = null; 
     
@@ -239,29 +254,44 @@
       document.getElementById('auto-time-group').style.display = (runMode === 'auto') ? 'block' : 'none';
     }
 
-    document.getElementById('run-mode-select').addEventListener('change', toggleRunModeUI);
-    
-    document.getElementById('eye-mode-select').addEventListener('change', () => {
-      if(isTrainingActive) { renderRandomTargetsOnly(); }
-    });
+    // 초기 이벤트 바인딩은 DOM 준비 후 수행
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('run-mode-select').addEventListener('change', toggleRunModeUI);
+      
+      document.getElementById('eye-mode-select').addEventListener('change', () => {
+        if(isTrainingActive) { renderRandomTargetsOnly(); }
+      });
 
-    document.getElementById('grid-size-slider').addEventListener('input', (e) => {
-      rowsCols = parseInt(e.target.value);
-      document.getElementById('grid-size-txt').innerText = rowsCols;
-      redrawBackgroundGrid();
-    });
-    document.getElementById('range-slider').addEventListener('input', (e) => {
-      randomRange = parseFloat(e.target.value);
-      document.getElementById('range-txt').innerText = randomRange.toFixed(2);
-      if(isTrainingActive) { renderRandomTargetsOnly(); }
-    });
-    document.getElementById('bg-speed-slider').addEventListener('input', (e) => {
-      rotationSpeed = parseInt(e.target.value);
-      document.getElementById('bg-speed-txt').innerText = rotationSpeed;
+      document.getElementById('grid-size-slider').addEventListener('input', (e) => {
+        rowsCols = parseInt(e.target.value);
+        document.getElementById('grid-size-txt').innerText = rowsCols;
+        redrawBackgroundGrid();
+      });
+      document.getElementById('range-slider').addEventListener('input', (e) => {
+        randomRange = parseFloat(e.target.value);
+        document.getElementById('range-txt').innerText = randomRange.toFixed(2);
+        if(isTrainingActive) { renderRandomTargetsOnly(); }
+      });
+      document.getElementById('bg-speed-slider').addEventListener('input', (e) => {
+        rotationSpeed = parseInt(e.target.value);
+        document.getElementById('bg-speed-txt').innerText = rotationSpeed;
+      });
+
+      const sceneEl = document.querySelector('a-scene');
+      if (sceneEl.hasLoaded) {
+        redrawBackgroundGrid();
+      } else {
+        sceneEl.addEventListener('loaded', redrawBackgroundGrid);
+      }
+      
+      setupVRHardwareLayers();
+      animateBackgroundAndScroll();
+      requestAnimationFrame(checkTargetGazeIntersection);
     });
 
     function addHistoryLog(status, activeEye, typeMode) {
       const logContainer = document.getElementById('history-log');
+      if (!logContainer) return;
       const now = new Date();
       const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
       
@@ -316,7 +346,8 @@
         document.getElementById('active-eye-txt').innerText = `왼쪽눈 활성 (${eyeDisplayMode})`;
         document.getElementById('active-eye-txt').style.color = "#ff2a2a";
 
-        cLeft.setAttribute('visible', 'true'); cRight.setAttribute('visible', 'false');
+        if(cLeft) cLeft.setAttribute('visible', 'true'); 
+        if(cRight) cRight.setAttribute('visible', 'false');
         if(ringLeft) ringLeft.setAttribute('visible', 'true'); 
         if(ringRight) ringRight.setAttribute('visible', 'false');
         if (raycasterEl) raycasterEl.setAttribute('position', '-0.03 0 0');
@@ -335,7 +366,8 @@
         document.getElementById('active-eye-txt').innerText = `오른쪽눈 활성 (${eyeDisplayMode})`;
         document.getElementById('active-eye-txt').style.color = "#10b981";
 
-        cLeft.setAttribute('visible', 'false'); cRight.setAttribute('visible', 'true');
+        if(cLeft) cLeft.setAttribute('visible', 'false'); 
+        if(cRight) cRight.setAttribute('visible', 'true');
         if(ringLeft) ringLeft.setAttribute('visible', 'false'); 
         if(ringRight) ringRight.setAttribute('visible', 'true');
         if (raycasterEl) raycasterEl.setAttribute('position', '0.03 0 0');
@@ -378,7 +410,6 @@
       });
     }
 
-    // [핵심 수정 2] 레이캐스터 객체 비동기 초기화 3중 예외 방어 로직
     function checkTargetGazeIntersection() {
       requestAnimationFrame(checkTargetGazeIntersection);
       if (!isTrainingActive || isPopping) return; 
@@ -600,20 +631,6 @@
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
     }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const sceneEl = document.querySelector('a-scene');
-      
-      if (sceneEl.hasLoaded) {
-        redrawBackgroundGrid();
-      } else {
-        sceneEl.addEventListener('loaded', redrawBackgroundGrid);
-      }
-      
-      setupVRHardwareLayers();
-      animateBackgroundAndScroll();
-      requestAnimationFrame(checkTargetGazeIntersection);
-    });
   </script>
 </body>
 </html>
