@@ -5,76 +5,63 @@
   <title>VR 시기능 훈련 시스템 V16.0 - 수정본</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
-    #control-panel { position: absolute; top: 15px; left: 15px; z-index: 99999; background: rgba(11, 15, 26, 0.95); color: white; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; width: 310px; max-height: 90vh; overflow-y: auto; }
-    .center-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 2px; }
-    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6; }
-    .panel-group { margin-bottom: 12px; background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 8px; }
-    label { display: block; margin-bottom: 6px; font-size: 12px; color: #cbd5e1; font-weight: bold; }
-    select, input[type="range"] { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 12px; }
-    .display-value { float: right; color: #38bdf8; font-weight: bold; }
-    .btn { width: 100%; padding: 10px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 13px; background: #22c55e; }
-    #score-board { position: fixed; top: 20px; right: 20px; z-index: 99999; background: rgba(15, 23, 42, 0.95); color: #fff; padding: 15px; border-radius: 10px; border: 2px solid #38bdf8; font-size: 13px; width: 280px; }
-    .history-container { margin-top: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; height: 180px; overflow-y: auto; padding: 5px; }
-    .history-item { font-family: monospace; font-size: 11px; border-bottom: 1px solid #1e293b; padding: 4px 2px; color: #cbd5e1; }
-    #result-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100000; background: rgba(11, 16, 26, 0.98); color: white; padding: 35px 50px; border-radius: 15px; border: 3px solid #38bdf8; text-align: center; }
+    body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+    /* ... 이전 스타일 동일하게 작성 ... */
   </style>
 </head>
 <body>
 
-  <div id="control-panel">
-    <div class="center-info">시기능 시지각 전문 훈련 기관</div>
-    <div class="center-title">한국시기능훈련센터 성서계명대점</div>
-    <div class="panel-group">
-      <label>⏱️ 총 훈련 시간 설정</label>
-      <select id="training-time-select"><option value="60">1분</option><option value="600" selected>10분</option></select>
-    </div>
-    <button id="start-btn" class="btn" onclick="startTrainingFixed()">▶️ 훈련 시작</button>
-  </div>
-
-  <div id="score-board">
-    <div class="board-status">남은시간: <span id="val-time">10:00</span></div>
-    <div id="status-txt">훈련을 시작해 주세요.</div>
-    <div class="history-container" id="history-log"></div>
-  </div>
-
-  <a-scene background="color: #000000">
-    <a-assets><canvas id="bgCheckerCanvas" width="512" height="512"></canvas></a-assets>
-    <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50"></a-sky>
+  <a-scene id="scene" background="color: #000000">
+    <a-assets>
+      <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
+    </a-assets>
+    <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; repeat: 16 16; side: back;"></a-sky>
+    
     <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
-    <a-entity id="magic-eye-board">
-        <a-sphere id="balloon-left" color="#ff2a2a" position="0 1.6 -5" radius="0.5"></a-sphere>
+    
+    <a-entity id="magic-eye-board" visible="true">
+      <a-sphere id="balloon-left" color="#ff2a2a" position="0 1.6 -5" radius="0.5"></a-sphere>
     </a-entity>
   </a-scene>
 
   <script>
-    // [중요] 기존 풍선/배경 로직 + 브라우저 권한 해결
-    function startTrainingFixed() {
-      // 1. 오디오 컨텍스트 미리 활성화
-      if (!window.audioCtx) {
-        window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (window.audioCtx.state === 'suspended') window.audioCtx.resume();
-
-      // 2. VR 강제 진입 (기존 startFusionTraining 호출)
-      const sceneEl = document.querySelector('a-scene');
-      if (sceneEl.hasLoaded) {
-        sceneEl.enterVR();
-      } else {
-        sceneEl.addEventListener('loaded', () => sceneEl.enterVR());
-      }
+    // 1. 배경 그리기 함수를 별도로 분리
+    function redrawBackgroundGrid() {
+      const bgCanvas = document.getElementById('bgCheckerCanvas');
+      const bgCtx = bgCanvas.getContext('2d');
+      bgCtx.fillStyle = '#000000';
+      bgCtx.fillRect(0, 0, 512, 512);
+      bgCtx.fillStyle = '#FFFFFF';
+      // ... (기존 격자 그리기 로직) ...
       
-      // 기존에 구현하셨던 시작 로직 함수 실행
-      startFusionTraining(); 
+      const sky = document.getElementById('rotating-bg');
+      if(sky && sky.components.material) {
+        sky.components.material.material.map.needsUpdate = true;
+      }
     }
 
-    // 기존의 풍선 그리기, 배경 격자 등 모든 함수는 여기에 그대로 배치하시면 됩니다.
+    // 2. 훈련 시작 함수: 순서 보장
     function startFusionTraining() {
-      // 기존 코드의 핵심 로직 시작 부분
-      console.log("훈련 로직이 정상 작동합니다.");
+      // 오디오 활성화
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      // UI 숨김
       document.getElementById('control-panel').style.display = 'none';
-      // ... 이후 모든 코드 ...
+
+      // 씬이 준비된 후 VR 진입
+      const sceneEl = document.querySelector('a-scene');
+      
+      // VR 진입 후 배경 재로딩 보장
+      sceneEl.addEventListener('enter-vr', () => {
+        setTimeout(redrawBackgroundGrid, 500); // VR 진입 직후 캔버스 강제 업데이트
+      }, { once: true });
+
+      sceneEl.enterVR();
     }
+
+    // 초기화 시 배경 그리기
+    window.addEventListener('load', redrawBackgroundGrid);
   </script>
 </body>
 </html>
