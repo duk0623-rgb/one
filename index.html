@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V21.3 (시선 센서 관통 및 타격 판정 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V21.4 (링 복원 및 레이캐스터 관통 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -49,16 +49,6 @@
       }
     });
 
-    // ★[새로운 컴포넌트] 레이캐스터 센서 광선이 링을 무조건 관통하여 패스하도록 보장
-    AFRAME.registerComponent('raycaster-ignore', {
-      init: function () {
-        this.el.addEventListener('object3dset', () => {
-          const mesh = this.el.getObject3D('mesh');
-          if (mesh) { mesh.raycast = function () { return null; }; } // 레이캐스트 연산 강제 무력화
-        });
-      }
-    });
-
     AFRAME.registerComponent('gaze-target-action', {
       init: function () {
         this.el.addEventListener('mouseenter', () => {
@@ -94,6 +84,7 @@
           </select>
         </div>
 
+        <!-- [수동모드 그룹] -->
         <div id="manual-mode-options">
           <div class="panel-group">
             <label>🗺️ 배경 이동 방향 지정 (수동)</label>
@@ -118,6 +109,7 @@
           </div>
         </div>
 
+        <!-- [자동모드 그룹] -->
         <div id="auto-mode-options" style="display: none;">
           <div class="panel-group">
             <label>⏱️ 자동 모드 전체 훈련 시간</label>
@@ -168,6 +160,7 @@
         <button class="start-btn" onclick="startSingleVRTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
       </div>
 
+      <!-- 대형 모니터 전광판 -->
       <div id="active-dashboard-area" style="display: none;">
         <div class="dashboard-panel">
           <div class="dash-row">
@@ -181,14 +174,17 @@
     </div>
   </div>
 
+  <!-- VR 메인 씬 -->
   <a-scene id="vr-scene" background="color: #000000" vr-mode-ui="enabled: true" vr-loop-manager>
     <a-assets><canvas id="bgCheckerCanvas" width="512" height="512"></canvas></a-assets>
     <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; repeat: 16 16; side: back;" stereo-eye-lock="eye: both"></a-sky>
     
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
+        <!-- 링을 제외하고 오직 .balloon-target(풍선)만 정밀 타격하는 청정 시선 레이캐스터 -->
         <a-entity cursor="fuse: false;" raycaster="objects: .balloon-target; far: 60; interval: 50;" position="0 0 -1"></a-entity>
         
+        <!-- HUD 시스템 -->
         <a-entity id="hud-left" position="-0.03 0.35 -1" stereo-eye-lock="eye: left" visible="false">
           <a-text id="hud-text-left" value="" color="#38bdf8" align="center" width="1.2" font="khaoan"></a-text>
         </a-entity>
@@ -198,19 +194,23 @@
       </a-entity>
     </a-entity>
 
+    <!-- 메인 트레이닝 보드 -->
     <a-entity id="magic-eye-board" visible="false">
+      <!-- 왼쪽 눈 레이어 -->
       <a-entity id="left-eye-container" stereo-eye-lock="eye: left">
         <a-sphere id="balloon-left" class="balloon-target" gaze-target-action color="#ff2a2a" radius="1.6">
           <a-cone id="cone-left" color="#cc1111" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
         </a-sphere>
-        <a-ring id="gaze-ring-left" raycaster-ignore radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <!-- 오류 컴포넌트를 지우고 그래픽을 완벽히 복구한 검은 링 -->
+        <a-ring id="gaze-ring-left" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
       
+      <!-- 오른쪽 눈 레이어 -->
       <a-entity id="right-eye-container" stereo-eye-lock="eye: right">
         <a-sphere id="balloon-right" class="balloon-target" gaze-target-action color="#10b981" radius="1.6">
           <a-cone id="cone-right" color="#047857" position="0 -1.5 0" scale="0.4 0.4 0.4"></a-cone>
         </a-sphere>
-        <a-ring id="gaze-ring-right" raycaster-ignore radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
+        <a-ring id="gaze-ring-right" radius-inner="0.3" radius-outer="0.6" color="#000000" material="shader: flat; opacity: 1.0; depthTest: false;"></a-ring>
       </a-entity>
     </a-entity>
     <a-entity id="particle-group"></a-entity>
