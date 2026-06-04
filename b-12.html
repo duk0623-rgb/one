@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>VR 시기능 훈련 시스템 V16.0 - 최종</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
+    #control-panel { position: absolute; top: 15px; left: 15px; z-index: 99999; background: rgba(11, 15, 26, 0.95); color: white; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; width: 310px; }
+    .center-title { font-size: 16px; font-weight: bold; color: #38bdf8; text-align: center; margin-bottom: 12px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; }
+    .btn { width: 100%; padding: 12px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; background: #22c55e; }
+    #score-board { position: fixed; top: 20px; right: 20px; z-index: 99999; background: rgba(15, 23, 42, 0.95); color: #fff; padding: 15px; border-radius: 10px; border: 2px solid #38bdf8; }
+  </style>
+</head>
+<body>
+
+  <div id="control-panel">
+    <div class="center-title">한국시기능훈련센터 성서계명대점</div>
+    <button class="btn" onclick="startTraining()">▶️ 훈련 시작</button>
+  </div>
+
+  <div id="score-board">
+    점수: <span id="val-score" style="color:#22c55e;">0000</span><br>
+    상태: <span id="status-txt">대기 중</span>
+  </div>
+
+  <a-scene background="color: #000000">
+    <a-assets>
+      <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
+    </a-assets>
+
+    <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat;"></a-sky>
+
+    <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
+      <a-entity id="ray" raycaster="objects: .target; far: 20;" cursor="rayOrigin: entity" position="0 0 -1"></a-entity>
+    </a-entity>
+
+    <a-sphere id="balloon" class="target" color="#ff2a2a" position="0 1.6 -5" radius="0.5"></a-sphere>
+  </a-scene>
+
+  <script>
+    let score = 0;
+    let rotY = 0;
+    let gazeTimer = null;
+
+    // 1. 배경 그리기
+    function drawGrid() {
+      const canvas = document.getElementById('bgCheckerCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#FFF';
+      for(let i=0; i<8; i++) for(let j=0; j<8; j++) if((i+j)%2===0) ctx.fillRect(i*64, j*64, 64, 64);
+      const sky = document.getElementById('rotating-bg');
+      if(sky.components.material) sky.components.material.material.map.needsUpdate = true;
+    }
+
+    // 2. 훈련 시작 및 VR 진입
+    function startTraining() {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtx.resume();
+      document.getElementById('control-panel').style.display = 'none';
+      const scene = document.querySelector('a-scene');
+      scene.enterVR();
+      animate();
+    }
+
+    // 3. 루프 (배경 회전 + 주시 감지)
+    function animate() {
+      // 배경 회전
+      rotY += 0.2;
+      document.getElementById('rotating-bg').setAttribute('rotation', `0 ${rotY} 0`);
+      
+      // 주시 감지
+      const ray = document.getElementById('ray');
+      const intersections = ray.components.raycaster.intersections;
+      if (intersections.length > 0 && intersections[0].object.el.id === 'balloon') {
+        if (!gazeTimer) {
+          document.getElementById('status-txt').innerText = "주시 중 (1초)...";
+          gazeTimer = setTimeout(popBalloon, 1000);
+        }
+      } else {
+        clearTimeout(gazeTimer); gazeTimer = null;
+        document.getElementById('status-txt').innerText = "훈련 중";
+      }
+      requestAnimationFrame(animate);
+    }
+
+    // 4. 풍선 터짐
+    function popBalloon() {
+      score += 1000;
+      document.getElementById('val-score').innerText = score.toString().padStart(4, '0');
+      const b = document.getElementById('balloon');
+      b.setAttribute('visible', 'false');
+      setTimeout(() => {
+        b.setAttribute('position', `${(Math.random()-0.5)*4} ${1.6+(Math.random()-0.5)} -5`);
+        b.setAttribute('visible', 'true');
+      }, 500);
+    }
+
+    window.onload = drawGrid;
+  </script>
+</body>
+</html>
