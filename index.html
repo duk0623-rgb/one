@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.4 (첫 로딩 버그 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V16.5 (첫 로딩 버그 방어 + 링 가이드 복원판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -59,11 +59,10 @@
       }
     });
 
-    // [첫 로딩 시 하드웨어 유실 방지용 엔진 강제 활성화 컴포넌트]
+    // [첫 로딩 시 하드웨어 유실 방지용 엔진 강제 활성화 컴포넌트] - ★ 절대 보존 ★
     AFRAME.registerComponent('scene-initializer', {
       init: function () {
         this.el.addEventListener('loaded', () => {
-          // 엔진이 로드되는 순간 강제로 하드웨어 정렬 및 캔버스 그리기를 강제 바인딩합니다.
           setTimeout(() => {
             redrawBackgroundGrid();
             const sceneEl = document.querySelector('a-scene');
@@ -193,6 +192,7 @@
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
         <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
+        
         <a-ring id="gaze-ring-left" radius-inner="0.02" radius-outer="0.03" color="#000000" position="-0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: left"></a-ring>
         <a-ring id="gaze-ring-right" radius-inner="0.02" radius-outer="0.03" color="#000000" position="0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: right"></a-ring>
       </a-entity>
@@ -242,13 +242,11 @@
       }
     }
 
-    // [첫 로딩 해결 핵심 밸브] 
-    // 브라우저가 최초 1회 진입했을 때, 자동으로 내부 세션을 트리거하여 '두 번째 열린 인스턴스 환경'과 완전히 동등하게 렌더러를 동기화 시킵니다.
+    // [첫 로딩 해결 핵심 밸브] - ★ 절대 보존 (한 번만 열어도 정상 구동 유도) ★
     window.addEventListener('load', () => {
       redrawBackgroundGrid();
       const sceneEl = document.querySelector('a-scene');
       
-      // 첫 로딩 버그의 원인인 WebGL Context 유실 현상을 완벽하게 방어하기 위해 더미 리사이즈 및 타겟 새로고침 연쇄 유도
       if (sceneEl) {
         sceneEl.style.display = 'block';
         if(sceneEl.hasLoaded) {
