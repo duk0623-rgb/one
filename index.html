@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.1 (초기 구동 버그 완벽 수정판)</title>
+  <title>VR 시기능 훈련 시스템 V16.2 (첫 로딩 버그 완벽 수정판)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -42,6 +42,7 @@
     .start-btn { width: 100%; padding: 12px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 12px; font-size: 15px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); }
   </style>
   <script>
+    // [양안 격리용 레이어 락 컴포넌트]
     AFRAME.registerComponent('stereo-eye-lock', {
       schema: { eye: {type: 'string', default: 'both'} },
       init: function () {
@@ -57,6 +58,18 @@
         }
       }
     });
+
+    // [첫 로딩 시 캔버스 유실 방지용 엔진 동기화 컴포넌트]
+    AFRAME.registerComponent('scene-initializer', {
+      init: function () {
+        // 씬 내부의 모든 요소가 완벽히 준비되었을 때 배경 그리기를 실행
+        this.el.addEventListener('loaded', () => {
+          setTimeout(() => {
+            redrawBackgroundGrid();
+          }, 100);
+        });
+      }
+    });
   </script>
 </head>
 <body>
@@ -66,7 +79,6 @@
       <div class="center-info">시기능 시지각 전문 훈련 기관</div>
       <div class="center-title">한국시기능훈련센터 성서계명대점</div>
       
-      <!-- 설정 입력 영역 -->
       <div id="settings-input-area">
         <div class="panel-group">
           <label>🎮 구동 모드 선택</label>
@@ -148,7 +160,6 @@
         <button class="start-btn" onclick="startFusionTraining()">⚙️ 세팅 완료 및 VR 훈련 시작</button>
       </div>
 
-      <!-- 대형 모니터 전광판 패널 (훈련 중 활성화) -->
       <div id="active-dashboard-area">
         <div class="dashboard-panel">
           <div class="dash-row">
@@ -168,8 +179,7 @@
     </div>
   </div>
 
-  <!-- VR 메인 씬 -->
-  <a-scene background="color: #000000" vr-mode-ui="enabled: true">
+  <a-scene background="color: #000000" vr-mode-ui="enabled: true" scene-initializer>
     <a-assets>
       <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
     </a-assets>
@@ -224,8 +234,8 @@
       }
     }
 
-    // 문서가 완전히 로드되거나 인터벌을 돌며 캔버스가 완비되었을 때 배경 그리기를 확실히 보장합니다.
-    window.addEventListener('DOMContentLoaded', () => { setTimeout(redrawBackgroundGrid, 100); });
+    // 초기 브라우저 로딩 예외 방어용 다중 트리거
+    window.addEventListener('load', () => { setTimeout(redrawBackgroundGrid, 50); });
 
     function changeGridVal(amt) {
       rowsCols += amt;
@@ -296,7 +306,6 @@
       const cameraEl = document.getElementById('mainCamera');
       let camPos = {x: 0, y: 1.6, z: 0};
       
-      // 카메라 3D 오브젝트 상태를 안전하게 가로채 계산에 반영합니다.
       if (cameraEl && cameraEl.object3D) {
         cameraEl.object3D.updateMatrixWorld();
         camPos.x = cameraEl.object3D.position.x || 0;
@@ -384,7 +393,6 @@
         }
       }
       
-      // 레이캐스터 컴포넌트를 즉시 강제 리프레시하여 첫 실행 시 조준선을 유실하지 않게 조치합니다.
       if (raycasterEl && raycasterEl.components.raycaster) {
         raycasterEl.components.raycaster.refreshObjects();
       }
@@ -585,7 +593,7 @@
     }
 
     function startFusionTraining() {
-      // 구동 전에 캔버스와 배경 격자 그리기가 누락되었는지 다시 한 번 강제로 확인 및 호출해 줍니다.
+      // 훈련 시작 전 격자판 완전 갱신 강제 수행
       redrawBackgroundGrid();
 
       isTrainingActive = true; isPopping = false;
@@ -597,7 +605,6 @@
         targetSeconds = parseInt(document.getElementById('manual-time-select').value);
       }
       
-      // 오디오 컨텍스트가 정지 상태(suspended)일 경우 복구 프로세스를 강제 연동합니다.
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       } else if (audioCtx.state === 'suspended') {
@@ -613,11 +620,10 @@
 
       document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       
-      // 첫 구동 시 씬과 카메라 좌표계가 안전하게 완비될 수 있도록 60ms 미세 딜레이를 준 후 렌더링 엔진을 촉발합니다.
       setTimeout(() => {
         renderRandomTargetsOnly(); 
         startElapsedClock();
-      }, 60);
+      }, 100);
       
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
