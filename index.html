@@ -2,10 +2,20 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 - 브라우저 전환 대응</title>
+  <title>VR 훈련 시스템 - 블랙스크린 해결 버전</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #000; }
+    /* 검은 화면 방지: 로딩이 완료되기 전 보여줄 텍스트 */
+    #loading-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-family: sans-serif; text-align: center; z-index: 1000; }
+  </style>
 </head>
 <body>
+
+  <div id="loading-ui">
+    <h2>시스템 대기 중...</h2>
+    <p>브라우저를 클릭하거나 헤드셋 조종기로 조작을 시작하세요.</p>
+  </div>
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: true">
     <a-assets>
@@ -23,49 +33,35 @@
       <a-text id="score-display" value="점수: 0" align="center" position="0 0 0.1" color="white"></a-text>
     </a-entity>
 
-    <a-sphere id="target" position="0 1.6 -3" radius="0.5" color="red" visible="false"></a-sphere>
-    
-    <a-sky id="bg" color="#222"></a-sky>
+    <a-sphere id="target" position="0 1.6 -3" radius="0.5" color="#fff" visible="true"></a-sphere>
   </a-scene>
 
   <script>
-    let score = 0;
-    let isTrainingRunning = false;
+    let isStarted = false;
 
-    // 브라우저 포커스(전환) 시 훈련 시작/활성화 로직
+    // 화면이 켜지자마자 실행되는 감지기
     window.addEventListener('focus', () => {
-      if (!isTrainingRunning) {
-        console.log("브라우저 전환 감지: 훈련 활성화");
-        isTrainingRunning = true;
-        document.getElementById('target').setAttribute('visible', 'true');
-        // 여기서 배경 애니메이션 시작 코드 추가
-        startAnimation();
+      document.getElementById('loading-ui').style.display = 'none';
+      if (!isStarted) {
+        initTraining();
       }
     });
 
-    function startAnimation() {
-      // 배경 움직임 로직 예시
-      let bg = document.getElementById('bg');
-      setInterval(() => {
-        if(isTrainingRunning) {
-          // 배경이 움직이는 로직
-          bg.setAttribute('rotation', `0 ${Date.now()/50} 0`);
-        }
-      }, 100);
+    function initTraining() {
+      isStarted = true;
+      document.getElementById('target').setAttribute('color', 'red');
+      console.log("훈련 환경 로드 완료");
     }
 
-    // 풍선 터뜨리기
+    // 풍선 클릭 로직
     document.getElementById('target').addEventListener('click', () => {
-      score += 100;
-      document.getElementById('score-display').setAttribute('value', '점수: ' + score);
-      
-      // 사운드 재생 (강제)
       let sound = document.getElementById('sound-entity');
-      sound.components.sound.stopSound();
       sound.components.sound.playSound();
       
       // 위치 이동
-      document.getElementById('target').setAttribute('position', (Math.random()-0.5)*4 + " 1.6 -3");
+      let x = (Math.random()-0.5)*4;
+      let y = 1.2 + Math.random();
+      document.getElementById('target').setAttribute('position', `${x} ${y} -3`);
     });
   </script>
 </body>
